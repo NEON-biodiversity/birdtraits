@@ -1,0 +1,20 @@
+Methodology for sister taxa:
+
+1. Pull all vertnet records for mammals that have body mass measured.
+2. Find genera that have multiple species with at least 5 body mass records.
+3. Find the median latitude of all the records for each species.
+4. Find pairs within genera in which the lower-latitude species is tropical (|lat| < 23.5) and the higher-latitude species is not tropical (|lat| > 23.5).
+	*** There are 15 such pairs with adequate number of records.
+5. Calculate the coefficient of variation of log10(mass) for each species.
+6. Run a paired one-sided t-test going from the hypothesis that the tropical species will have lower CV.
+
+Ideas for covariates to test in birds or ways to refine the analysis:
+
+1. migrant status
+2. some type of phylogenetic correction
+3. functional group (songbird, raptor, etc)
+4. old versus new world
+5. range size, or home range size
+6. latitudinal distance between the taxa
+7. location of specimen inside the species' range (is it a core or an edge individual?)
+8. correct so that the pairs truly do represent sister species (instead of just two congeners)
