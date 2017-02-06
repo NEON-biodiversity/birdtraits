@@ -1,7 +1,7 @@
 # Extract climate for sister taxa records.
 
 library(raster)
-bird <- read.csv('~/verts/bird_allrecords.csv', stringsAsFactors = FALSE)
+bird <- read.csv('~/verts/bird_coords_mass.csv', stringsAsFactors = FALSE)
 fp <- '/mnt/research/plz-lab/NEON/external_data/raw_external_data/bioclim'
 bird_coord <- data.frame(x = bird$lon, y = bird$lat)
 
