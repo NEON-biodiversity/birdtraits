@@ -1,10 +1,16 @@
 # New methods for bird sister species comparison
 
-QDR, 3 Feb 2017
+QDR   
+created 3 Feb 2017  
+last modifed 7 Feb 2017 (added info on covariates)
 
 ## Abstract
 
 In 1967, Dan Janzen wrote a clever paper that was far ahead of its time. He stated that mountain passes are (physiologically speaking) higher in the tropics because the lower temporal variation experienced by tropical species causes them to be narrowly adapted to local conditions and thus have narrower niches. This idea has some support when it comes to thermal niches, but it has rarely been tested for niches in general. Body size is a good proxy for many niche dimensions in vertebrates. We identified sister species pairs using a phylogeny of all the birds in the world. For each of these pairs, we searched the VertNet specimen database for pairs where each species had at least ten body mass measurements. We tested the hypothesis that tropical species have less intraspecific variability in body mass--indeed, it is supported. This finding provides strong evidence for an important macroecological hypothesis. In addition, the lower standing variation in body mass of tropical species hints at narrower niche breadths, which may make them less able to cope with changing environments in the future. 
+
+Unfortunately, though we tested many covariates, we were unable to discover any key drivers of the relationship. Janzen proposed that within-year climate variability is the key driver, but if anything, we found that interannual (and not so much seasonal) climate variability explains some of the variation in the tropical-temperate discrepancy in bird body mass variability. We also controlled for the range of specimens collected, and the range size of the species, but did not find either to be an important influence.
+
+**Take-home message: The hypothesis is supported that tropical birds have a narrower range of body sizes than temperate sister taxa, but no covariates pop out as obvious explanations for this pattern so far.**
 
 ## New methods
 
@@ -28,7 +34,7 @@ We were additionally interested in testing the influence of different covariates
 
 1. *Higher taxonomic groupings*: 62 of the 101 pairs were passerines, and the remaining 39 were in a grab bag of orders (too few per family/order to say anything meaningful about individual orders). I grouped the pairs by passerine/non-passerine and tested whether the mean difference was different between the two groups.
 2. *Functional traits*: I extracted foraging traits from a database of bird functional traits (EltonTraits, http://dx.doi.org/10.1890/13-1917.1). I extracted life-history traits from a database of amniote life history traits (https://doi.org/10.6084/m9.figshare.c.3308127.v1). I tested whether the mean difference varied by the literature value of species mean body mass, or by a categorical diet classification. 
-3. *Range where the specimens were collected*: I used the lat-long coordinates of each point where specimens were collected to calculate a very crude measurement of the spatial spread of the collected specimens (the mean pairwise distance between the coordinates in lat-long space, this can be refined later). I tested whether the mean difference was correlated with this spread.
+3. *Range where the specimens were collected*: I used the coordinates of each point where specimens were collected to calculate two measurements of the spatial spread of the collected specimens. First, I projected the lat-long coordinates into a grid coordinate reference system so that I could get correct areas. I calculated spatial spread as the mean pairwise distance between the coordinates, as well as by calculating the area of the hull containing the points. I tested whether the mean difference was correlated with this spread.
 4. *Climate variability where the specimens were collected*: I downloaded the global 1979-2013 BioClim variables for the entire terrestrial globe at 0.5' resolution (http://dx.doi.org/doi:10.1594/WDCC/CHELSA_v1_1). I calculated the following variables and tested whether the mean difference was correlated with them: 
 	- spatial CV of temperature across the range where specimens were collected
 	- spatial CV of precipitation across the range
@@ -36,18 +42,28 @@ We were additionally interested in testing the influence of different covariates
 	- mean seasonal variability of precipitation (temporal var within year)
 	- mean interannual variability of temperature (temporal var across years)
 	- mean interannual variability of precipitation (temporal var across years)
-5. *Range sizes*: I have downloaded range sizes from BirdLife International at birdlife.org, but I am still working on extracting useful information out of them.
-6. *Migrant status*: I have some information from the Clements Checklist, but it is incomplete in terms of species. I might be able to get it off of the range maps. This is still a work in progress as well.
+5. *Range sizes*: I downloaded range maps from BirdLife International (birdlife.org); I was able to find a range for all species except the green heron which may have been lumped with its sister species--we might have to throw that pair out of the analysis which should not be a problem. I used QGIS to calculate the area of the polygons in square km. I tested whether a species' CV was related to its range size. I used the sum of resident and breeding range as the range size of a species (not counting winter range and areas passed through while migrating).
+6. *Migrant status*: I got information on migrant status from the range maps as follows: the range polygons are classified as year-round resident range, breeding range, and nonbreeding (winter) range. I classified species with only a year-round range as nonmigratory, species with both resident and breeding range as partial migrants, and species with no permanent range as obligate migrants. I tested whether the migrant status of a species was related to its CV.
 
 ## Results
+
+### Key result
 
 Tropical bird species have lower CV of body mass than their temperate sister species: `$t_{100} = -3.06$`, `$p = 0.0015$`, mean difference `$\bar {d} = -0.020$` (less in the tropics), `$CI = (-\infty, -0.0092)$`. (Figure 1: Plot connecting each pair with a line; Figure 2: Histogram of differences).
 
 This result held up to the bootstrapping test, indicating that it is not an artifact of different sample sizes between tropical and temperate birds. The t-test indicated that the tropical species had a significantly lower CV in 95.1% of the bootstrap simulations. The central 95% of the distribution of mean differences from the simulations was `$(-0.024, -0.010)$` and the central 95% of the distribution of t-statistics was `$(-3.22, -1.53)$`.
 
+### Variables that might moderate the relationship
+
+My initial analysis shows that the tropical-temperate difference in variability might be driven by the difference in spatial and interannual temperature variability between the temperate and tropical locations that the specimens were collected. As the difference between temperate and tropical temperature variability increases, the difference between temperate and tropical body mass variability also increases. In addition, the difference is moderated by the average body mass. There is a bigger difference between tropical and temperate in bigger taxa (and possibly in carnivorous taxa though that is confounded with body size obviously). However, both of these relationships are extremely weak. They only explain a few percent of the variation in each case, with a lot of noise. 
+
+There is also a possible influence of a couple additional factors on this relationship: one is the area from which the specimens were collected. Within species, as specimens were collected from a bigger area, the CV goes up slightly. However, this was essentially random with regard to the temperate-tropical status, so it does not have any relevance for our relationship. And again, it is a weak relationship.
+
+The ultimate message here is that we have a net greater amount of variability in temperate taxa, but a huge amount of noise in the relationship that so far we don't have a good way of explaining.  
+
 ## To do
 
-I will compile information on the functional group (using published bird trait databases), range size (using birdlife's range maps), and migrant status (using the eBird Clements checklist, as well as other sources as needed). Each of these can be used to look at whether the pattern between tropical and temperate is mediated by functional group, range size, or migrant status. I will also get the location of each specimen and look at whether the CV of a species is a function of the variability in collection location. I also can get climate data for all the specimen locations. How should that be put into this?
+I will make some figures and write up the statistical test results for the "covariate" part of the analysis. If there are other covariates that might do a better job of explaining this relationship, that would be great as well!
 
 <div style="page-break-after: always;"></div>
 ## Figures

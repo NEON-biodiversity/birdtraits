@@ -126,7 +126,7 @@ bird_summ <- vnbird %>% filter(issister) %>% group_by(binomial) %>% summarize(n 
 
 # Save the summary information.
 vnsis <- vnbird %>% filter(issister)
-write.csv(with(vnsis, data.frame(binomial, lat=decimallatitude, lon=decimallongitude, massing=massing)), file = file.path(fp, 'bird_coords_mass.csv'), row.names = FALSE)
+#write.csv(with(vnsis, data.frame(binomial, lat=decimallatitude, lon=decimallongitude, massing=massing)), file = file.path(fp, 'bird_coords_mass.csv'), row.names = FALSE)
 
 sister_join <- left_join(sisters, with(bird_summ, data.frame(sister1=binomial, n1=n, lat1=lat, cv1=cv_logmass)))
 sister_join <- left_join(sister_join, with(bird_summ, data.frame(sister2=binomial, n2=n, lat2=lat, cv2=cv_logmass)))
@@ -157,8 +157,8 @@ with(sister_troptemp, t.test(cv1, cv2, paired = TRUE, alternative = 'less')) # S
 
 # Analysis 2: Use only ones with at least 10 degrees latitude separation.
 
-sister_10 <- filter(sister_join, dlat > 10)
-with(sister_10, t.test(cv1, cv2, paired = TRUE, alternative = 'less')) # Significant!
+#sister_10 <- filter(sister_join, dlat > 10)
+#with(sister_10, t.test(cv1, cv2, paired = TRUE, alternative = 'less')) # Significant!
 
 
 #################################################################
@@ -350,4 +350,29 @@ sister_tt_range <- sister_tt_range %>% left_join(botw_ranges %>% rename(sister2 
 sister_tt_range$migrant_status2[sister_tt_range$sister2 == 'Butorides_virescens'] <- 'partial'
 sister_pair_long$migrant_status[sister_pair_long$taxon == 'Butorides_virescens'] <- 'partial'
 
+
+# Look at effects of migrant status on CV.
 with(sister_pair_long, table(realm, migrant_status))
+
+ggplot(sister_pair_long, aes(x = migrant_status, y = cv_logmass, color = realm)) + 
+  geom_jitter() + theme_minimal()
+ggplot(sister_pair_long, aes(x = migrant_status, y = cv_logmass)) + 
+  geom_boxplot() + theme_minimal()
+
+# Look at effects of range size on CV
+ggplot(sister_pair_long, aes(x = log10(range_size), y = cv_logmass, color = realm)) +
+  geom_point() + theme_minimal()
+ggplot(sister_tt_range, aes(x = log10(range_size1) - log10(range_size2), y = cv1 - cv2)) +
+  geom_point() + theme_minimal()
+ggplot(sister_pair_long, aes(x = realm, y = log10(range_size))) + geom_boxplot() + theme_minimal() # Might be different, but not really.
+
+##############################################
+
+# Save all the covariates together so that we can easily do analysis.
+
+sister_pair_long <- left_join(sister_pair_long, taxgrps %>% rename(taxon = sister1))
+sister_pair_long$songbird <- sister_pair_long$order == 'Passeriformes'
+
+sister_alldat <- cbind(sister_tt_clim, sister_tt_range[,13:16], sister_tt_traits[,10:111])
+save(sister_alldat, sister_pair_long, file = file.path(fp, 'sistercovariates.r'))
+save(sister_alldat, sister_pair_long, vnsis, file = 'bird_sistertaxa_raw.RData')
