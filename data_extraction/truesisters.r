@@ -376,3 +376,77 @@ sister_pair_long$songbird <- sister_pair_long$order == 'Passeriformes'
 sister_alldat <- cbind(sister_tt_clim, sister_tt_range[,13:16], sister_tt_traits[,10:111])
 save(sister_alldat, sister_pair_long, file = file.path(fp, 'sistercovariates.r'))
 save(sister_alldat, sister_pair_long, vnsis, file = 'bird_sistertaxa_raw.RData')
+
+##############################################
+
+# 15 Feb. 2017: Add additional covariates to the dataframes for further analysis.
+
+load(file.path(fp, 'bird_sistertaxa_raw.RData'))
+library(dplyr)
+
+# Topographic variability. Need to get elevation for each of the specimen points.
+# Use a fairly low-resolution SRTM dataset for elevations.
+# This might actually be difficult and take a lot of downloading.
+
+
+# Total and congeneric richness for each of the specimen points. Already calculated, need to load and add to dfs.
+birdrichness <- read.csv(file.path(fp, 'bird_withrichness.csv'), stringsAsFactors=FALSE)
+avgrichness <- birdrichness %>%
+  group_by(binomial) %>%
+  summarize(total_richness = median(total_richness),
+            congener_richness = median(congener_richness))
+
+# Number of subpopulations from which each set of specimens was collected. Need to calculate.
+# Round lat and long to nearest 0.5'. Anything which shares those coordinates is a subpopulation.
+nsubpops <- vnsis %>% 
+  mutate(latround = plyr::round_any(decimallatitude, 1/120),
+         lonround = plyr::round_any(decimallongitude, 1/120)) %>%
+  group_by(binomial) %>%
+  summarize(n = nrow(unique(cbind(latround, lonround))))
+  
+#################
+# JOIN COVARIATES
+sister_pair_long <- left_join(sister_pair_long, avgrichness %>% rename(taxon = binomial))
+sister_pair_long <- left_join(sister_pair_long, nsubpops %>% rename(taxon = binomial, n_subpops = n))
+
+names(avgrichness) <- paste(names(avgrichness), '1', sep = '')
+sister_alldat <- sister_alldat %>% left_join(avgrichness %>% rename(sister1 = binomial1))
+names(avgrichness) <- gsub('1', '2', names(avgrichness))
+sister_alldat <- sister_alldat %>% left_join(avgrichness %>% rename(sister2 = binomial2))
+
+names(nsubpops) <- paste(names(nsubpops), '1', sep = '')
+sister_alldat <- sister_alldat %>% left_join(nsubpops %>% rename(sister1 = binomial1, n_subpops1 = n1))
+names(nsubpops) <- gsub('1', '2', names(nsubpops))
+sister_alldat <- sister_alldat %>% left_join(nsubpops %>% rename(sister2 = binomial2, n_subpops2 = n2))
+
+sister_alldat$d <- sister_alldat$cv1 - sister_alldat$cv2
+
+save(sister_alldat, sister_pair_long, file = file.path(fp, 'sistercovariates.r'))
+save(sister_alldat, sister_pair_long, vnsis, file = file.path(fp, 'bird_sistertaxa_raw.RData'))
+
+
+#################
+# 17 Feb: add elevation variability.
+fp <- 'C:/Users/Q/Dropbox/projects/verts'
+load(file.path(fp, 'bird_sistertaxa_raw.RData'))
+library(dplyr)
+
+bird <- read.csv(file.path(fp, 'bird_coords_mass.csv'), stringsAsFactors = FALSE)
+bird_elev <- read.csv(file.path(fp, 'bird_elev.csv'))
+bird <- left_join(bird, bird_elev)
+
+# Get CV of elevation. Ignore repeats. Add minimum elevation so that everything is greater or equal to zero
+bird_topovar <- bird %>%
+  group_by(binomial) %>%
+  mutate(elev = elev + 77) %>%
+  summarize(elevation_cv = sd(unique(elev), na.rm = T)/mean(unique(elev), na.rm = T))
+
+sister_pair_long <- left_join(sister_pair_long, bird_topovar %>% rename(taxon = binomial))
+
+names(bird_topovar) <- paste(names(bird_topovar), '1', sep = '')
+sister_alldat <- sister_alldat %>% left_join(bird_topovar %>% rename(sister1 = binomial1))
+names(bird_topovar) <- gsub('1', '2', names(bird_topovar))
+sister_alldat <- sister_alldat %>% left_join(bird_topovar %>% rename(sister2 = binomial2))
+
+save(sister_alldat, sister_pair_long, file = file.path(fp, 'sistercovariates.r'))
+save(sister_alldat, sister_pair_long, vnsis, file = file.path(fp, 'bird_sistertaxa_raw.RData'))
