@@ -23,7 +23,7 @@ subset(bigdredge, delta < 5)
 
 lmdat2 <- sister_alldat %>% 
   mutate(logarea1 = log10(area1+1), logarea2 = log10(area2+1), lograngesize1 = log10(range_size1), lograngesize2 = log10(range_size2)) %>%
-  dplyr::select(sister1, sister2, d, logarea1, logarea2, meanlogbodymass, spatial_cv_temp1, spatial_cv_temp2, interannual_var_temp1, interannual_var_temp2, spatial_cv_precip1, spatial_cv_precip2, interannual_var_precip1, interannual_var_precip2, lograngesize1, lograngesize2, total_richness1, total_richness2, congener_richness1, congener_richness2, n_subpops1, n_subpops2, elevation_cv1, elevation_cv2) %>%
+  dplyr::select(sister1, sister2, d, logarea1, logarea2, meanlogbodymass, spatial_cv_temp1, spatial_cv_temp2, interannual_var_temp1, interannual_var_temp2, spatial_cv_precip1, spatial_cv_precip2, interannual_var_precip1, interannual_var_precip2, lograngesize1, lograngesize2, total_richness1, total_richness2, congener_richness1, congener_richness2, n_subpops1, n_subpops2, elevation_cv1, elevation_cv2, seasonal_var_temp1, seasonal_var_temp2, seasonal_var_precip1, seasonal_var_precip2) %>%
   filter(complete.cases(.))
 
 betterlm <- lm(d ~ ., data = lmdat2[,-(1:2)], na.action = 'na.pass')
@@ -79,6 +79,20 @@ ggplot(lmdat2, aes(x = interannual_var_precip1 - interannual_var_precip2, y = d)
   ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced interannual precipitation variability') +
   labs(x = expression(atop(paste('interannual ',Delta * CV[rainfall]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
 
+ggplot(lmdat2, aes(x = seasonal_var_temp1 - seasonal_var_temp2, y = d)) +
+  hl + vl +
+  geom_point() + stat_smooth(method='lm') +
+  theme_minimal() + 
+  ggtitle('Reduced variability in tropical species is correlated\nwith reduced SEASONAL temperature variability') +
+  labs(x = expression(atop(paste('seasonal ',Delta * CV[temperature]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+
+ggplot(lmdat2, aes(x = seasonal_var_precip1 - seasonal_var_precip2, y = d)) +
+  hl + vl +
+  geom_point() + geom_point() + stat_smooth(method='lm') +
+  theme_minimal() + 
+  ggtitle('Reduced variability in tropical species is correlated\nwith INCREASED SEASONAL precipitation variability') +
+  labs(x = expression(atop(paste('seasonal ',Delta * CV[rainfall]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+
 ggplot(lmdat2, aes(x = meanlogbodymass, y = d)) +
   hl +
   geom_point() + stat_smooth(method='lm') +
@@ -86,12 +100,14 @@ ggplot(lmdat2, aes(x = meanlogbodymass, y = d)) +
   ggtitle('Reduced variability in tropical species is correlated\nwith larger body sizes') +
   labs(x = expression(paste(log[10],' body mass')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
 
+p1 <-
 ggplot(lmdat2, aes(x = spatial_cv_temp1 - spatial_cv_temp2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced spatial temperature variability') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced spatial temperature variability') +
   labs(x = expression(atop(paste('spatial ',Delta * CV[temperature]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/temp_spatial_scatter.png'), height=6, width=6, dpi=400)
 
 ggplot(lmdat2, aes(x = spatial_cv_precip1 - spatial_cv_precip2, y = d)) +
   hl + vl +
@@ -100,52 +116,68 @@ ggplot(lmdat2, aes(x = spatial_cv_precip1 - spatial_cv_precip2, y = d)) +
   ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced spatial precipitation variability') +
   labs(x = expression(atop(paste('spatial ',Delta * CV[rainfall]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
 
-
+p2 <-
 ggplot(lmdat2, aes(x = logarea1 - logarea2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced area over which specimens were collected') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced area over which specimens were collected') +
   labs(x = expression(atop(Delta * log[10]*area, 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/area_collected_scatter.png'), height=6, width=6, dpi=400)
 
+p3 <-
 ggplot(lmdat2, aes(x = lograngesize1 - lograngesize2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced tropical range size') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced tropical range size') +
   labs(x = expression(atop(Delta * log[10]*rangesize, 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/range_size_scatter.png'), height=6, width=6, dpi=400)
 
+p4 <-
 ggplot(lmdat2, aes(x = total_richness1 - total_richness2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith increased tropical richness') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith increased tropical richness') +
   labs(x = expression(atop(Delta * richness, 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/total_richness_scatter.png'), height=6, width=6, dpi=400)
 
+p5 <-
 ggplot(lmdat2, aes(x = congener_richness1 - congener_richness2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith increased tropical congener richness') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith increased tropical congener richness') +
   labs(x = expression(atop(Delta * congeners, 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/congener_richness_scatter.png'), height=6, width=6, dpi=400)
 
+p6 <-
 ggplot(lmdat2, aes(x = n_subpops1 - n_subpops2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith number of subpopulations collected from') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith number of subpopulations collected from') +
   labs(x = expression(atop(Delta * subpopulations, 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/number_subpops_scatter.png'), height=6, width=6, dpi=400)
 
+p7 <-
 ggplot(lmdat2, aes(x = elevation_cv1 - elevation_cv2, y = d)) +
   hl + vl +
   geom_point() + 
   theme_minimal() + 
-  ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced variability in elevation') +
+  #ggtitle('Reduced variability in tropical species is NOT correlated\nwith reduced variability in elevation') +
   labs(x = expression(atop(Delta * CV[elevation], 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass])))
+#ggsave(file.path(fp, 'vertnet_results/elevation_range_scatter.png'), height=6, width=6, dpi=400)
+
 
 
 dev.off()
 
+library(gridExtra)
+png(file.path(fp, 'vertnet_results/other_covariates_scatter.png'), height=15, width=8.5, res=400, units='in')
+grid.arrange(grobs = list(p1,p2,p3,p4,p5,p6,p7), nrow=4)
+dev.off()
 
 ###########################
 
