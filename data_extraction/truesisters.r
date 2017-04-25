@@ -1,4 +1,5 @@
 # New bird analysis: Start with phylogeny and get the sister pairs first. Then get the traits.
+# edit 24 April 2017: get longitudes for map.
 
 library(ape)
 allbirds <- read.tree('~/verts/trees/AllBirdsEricson1.tre')
@@ -122,7 +123,13 @@ vnbird$issister <- vnbird$binomial %in% sister_names
 missingnames <- vnbird %>% filter(!issister) %>% group_by(binomial) %>% summarize(n = n()) %>% arrange(-n)
 
 # Get the information for each of the pairs.
-bird_summ <- vnbird %>% filter(issister) %>% group_by(binomial) %>% summarize(n = n(), lat = median(decimallatitude, na.rm=T), cv_logmass = sd(log10(massing))/mean(log10(massing)))
+bird_summ <- vnbird %>% 
+  filter(issister) %>% 
+  group_by(binomial) %>% 
+  summarize(n = n(), 
+            lat = median(decimallatitude, na.rm=T),
+            lon = median(decimallongitude, na.rm=T),
+            cv_logmass = sd(log10(massing))/mean(log10(massing)))
 
 # Save the summary information.
 vnsis <- vnbird %>% filter(issister)
