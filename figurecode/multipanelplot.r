@@ -59,5 +59,5 @@ smalllab <- theme(axis.title.x=element_text(size=10),
                   axis.title.y=element_text(size=10))
 
 bottom_row <- plot_grid(p_int, pcov1 + smalllab, pcov2 + smalllab, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
-full_plot <- plot_grid(p_map + panel_border(colour='black'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(1.2, 1))
-ggsave(file.path(fp, 'vertnet_results/multipanelplot1.png'), full_plot, height=8, width=8, dpi=400)
+full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(0.9, 1))
+ggsave(file.path(fp, 'vertnet_results/multipanelplot1.png'), full_plot, height=9, width=9, dpi=400)
