@@ -99,7 +99,7 @@ sister_join <- filter(sister_join, !grepl('Oriolus',sister1))
 # NOTE: It's possible we may have to remove Butorides because the two species were lumped at one point.
 
 sister_troptemp <- filter(sister_join, lat1 < 23.5 & lat2 > 23.5)
-with(sister_troptemp, t.test(cv1, cv2, paired = TRUE, alternative = 'less')) # Significant!
+with(sister_troptemp, t.test(cv2, cv1, paired = TRUE, alternative = 'greater')) # Significant!
 
 # Output: t_99 = -3.115, p = 0.0012, cimax = -0.0096, d = -0.021
 
@@ -128,7 +128,7 @@ for (sim in 1:nsim) {
     }
   }
   
-  ttests[[sim]] <- with(sister_subsample, t.test(cv1, cv2, paired = TRUE, alternative = 'less'))
+  ttests[[sim]] <- with(sister_subsample, t.test(cv2, cv1, paired = TRUE, alternative = 'greater'))
   setTxtProgressBar(pb, sim)
   
 }
@@ -154,13 +154,13 @@ sister_pair_long <-
 # FIGURES -----------------------------------------------------------------
 
 load(file.path(fp, 'sistercovariates.r'))
-sister_alldat$d <- sister_alldat$cv1 - sister_alldat$cv2
+sister_alldat$d <- sister_alldat$cv2 - sister_alldat$cv1
 sister_alldat <- filter(sister_alldat, !grepl('Oriolus', sister1))
 sister_pair_long <- filter(sister_pair_long, !grepl('Oriolus', genus))
 
 lmdat <- sister_alldat %>% 
   mutate(logarea1 = log10(area1), logarea2 = log10(area2)) %>%
-  select(sister1, sister2, d, songbird, spatial_spread1, spatial_spread2, migrant_status1, migrant_status2, range_size1, range_size2, logarea1, logarea2, meanlogbodymass, Diet.5Cat_trop, Diet.5Cat_temp, spatial_cv_temp1, spatial_cv_temp2, seasonal_var_temp1, seasonal_var_temp2, interannual_var_temp1, interannual_var_temp2) %>%
+  dplyr::select(sister1, sister2, d, songbird, spatial_spread1, spatial_spread2, migrant_status1, migrant_status2, range_size1, range_size2, logarea1, logarea2, meanlogbodymass, Diet.5Cat_trop, Diet.5Cat_temp, spatial_cv_temp1, spatial_cv_temp2, seasonal_var_temp1, seasonal_var_temp2, interannual_var_temp1, interannual_var_temp2) %>%
   filter(complete.cases(.))
 lmdat2 <- sister_alldat %>% 
   mutate(logarea1 = log10(area1+1), logarea2 = log10(area2+1), lograngesize1 = log10(range_size1), lograngesize2 = log10(range_size2)) %>%
@@ -178,9 +178,9 @@ mapdat$lat_trop[abs(mapdat$lat_trop) > 23.5] <- NA
 mapdat$lon_trop[abs(mapdat$lat_trop) > 23.5] <- NA
 
 sister_alldat <- left_join(sister_alldat, 
-                           mapdat %>% rename(sister1=binomial) %>% select(sister1, lat_trop,lon_trop))
+                           mapdat %>% rename(sister1=binomial) %>% dplyr::select(sister1, lat_trop,lon_trop))
 sister_alldat <- left_join(sister_alldat, 
-                           mapdat %>% rename(sister2=binomial) %>% select(sister2, lat_temp,lon_temp))
+                           mapdat %>% rename(sister2=binomial) %>% dplyr::select(sister2, lat_temp,lon_temp))
 
 ############################################
 # World Map
@@ -188,11 +188,11 @@ sister_alldat <- left_join(sister_alldat,
 heatramp <- colorRampPalette(RColorBrewer::brewer.pal(name='YlOrRd', n=9),bias=2,space="rgb")(50)
 fillScale <- scale_fill_gradientn(colours = heatramp, name = 'Body mass variability')
 colorScale <- scale_color_manual(values = c('indianred','forestgreen')) # Line colors
-linetypeScale <- scale_linetype_manual(values = c('dotted','solid'))
+linetypeScale <- scale_linetype_manual(name = '', values = c('dotted','solid'), labels = c('Tropical\nmore variable','Nontropical\nmore variable'))
 
 worldMap <- borders('world', fill='gray75', color='black')
 p_map <- ggplot() + worldMap + 
-  geom_segment(aes(x=lon_temp, y=lat_temp, xend=lon_trop, yend=lat_trop, linetype = d<0), data=sister_alldat) +
+  geom_segment(aes(x=lon_temp, y=lat_temp, xend=lon_trop, yend=lat_trop, linetype = d>0), data=sister_alldat) +
   geom_point(aes(x=lon_trop,y=lat_trop, fill=cv1), data=sister_alldat, pch=21) +
   geom_point(aes(x=lon_temp,y=lat_temp, fill=cv2), data=sister_alldat, pch=21) +
   scale_x_continuous(expand=c(0,0)) +
@@ -244,22 +244,28 @@ phist <- ggplot(sister_troptemp, aes(x = cv1 - cv2)) +
 hl <- geom_hline(yintercept = 0, color = 'indianred3')
 vl <- geom_vline(xintercept = 0, color = 'indianred3')
 
-lmtemp <- lm(d ~ I(seasonal_var_temp1 - seasonal_var_temp2), data=lmdat2)
+lmtemp <- lm(d ~ I(seasonal_var_temp2 - seasonal_var_temp1), data=lmdat2)
 lmsize <- lm(d ~ meanlogbodymass, data=lmdat2)
 
-pcov1 <- ggplot(lmdat2, aes(x = seasonal_var_temp1 - seasonal_var_temp2, y = d)) +
+pcov1 <- ggplot(lmdat2 %>% mutate(ivt = interannual_var_temp2 - interannual_var_temp1), aes(x = ivt, y = d)) +
   hl + 
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
+  labs(x = expression(paste('yearly ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(ivt=c(Inf, -2.5), d = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5))
   #ggtitle('Reduced variability in tropical species is correlated\nwith reduced SEASONAL temperature variability') +
-  labs(x = expression(atop(paste('seasonal ',Delta * CV[temperature]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass]))) 
+ # labs(x = expression(atop(paste('seasonal ',Delta * CV[temperature]), 'temperate more variable <--> tropical more variable')), y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass]))) 
 
-pcov2 <- ggplot(lmdat2, aes(x = 10^meanlogbodymass, y = d)) +
+pcov2 <- ggplot(lmdat2 %>% mutate(bmass = 10^meanlogbodymass), aes(x = bmass, y = d)) +
   hl + scale_x_log10() +
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
+  labs(x = 'Body mass (g)', y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(bmass=c(Inf, 3), d = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5))
   #ggtitle('Reduced variability in tropical species is correlated\nwith larger body sizes') +
-  labs(x = 'Body mass (g)', y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass]))) 
+  #labs(x = 'Body mass (g)', y = expression(atop('temperate more variable <--> tropical more variable', Delta * CV[bodymass]))) 
 
 #########################################
 # Assemble Plot
@@ -267,9 +273,9 @@ pcov2 <- ggplot(lmdat2, aes(x = 10^meanlogbodymass, y = d)) +
 smalllab <- theme(axis.title.x=element_text(size=10),
                   axis.title.y=element_text(size=10))
 
-bottom_row <- plot_grid(p_int, pcov1 + smalllab, pcov2 + smalllab, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
-full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(0.9, 1))
-ggsave(file.path(fp, 'vertnet_results/multipanelplot1.png'), full_plot, height=8, width=8, dpi=400)
+bottom_row <- plot_grid(p_int, pcov1, pcov2, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
+full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(1, 0.9))
+ggsave(file.path(fp, 'vertnet_results/multipanelplot1.png'), full_plot, height=6, width=8, dpi=400)
 
 ##########################################
 # 1 May: multiple regression
@@ -303,13 +309,15 @@ subset(multregdredge, delta < 2)
 multregbest <- lm(d ~ interann_temp + meanlogbodymass + seasonal_precip + spatial_temp, data = multregdat)
 summary(multregbest)
 
+# Check the spatial temp one
+summary(lm(d ~ spatial_temp, data = multregdat))
 ###########################################
 # 1 May: supplemental figures
 
 library(cowplot)
 
-xaxisvars <- c('spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area')
-xaxislabels <- c('Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)')
+xaxisvars <- c('spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'meanlogbodymass')
+xaxislabels <- c('Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Mean body mass (log10 g)')
 
 scatterplots <- list()
 
