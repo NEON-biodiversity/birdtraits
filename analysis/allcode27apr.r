@@ -280,18 +280,18 @@ ggsave(file.path(fp, 'vertnet_results/multipanelplot1.png'), full_plot, height=6
 ##########################################
 # 1 May: multiple regression
 
-multregdat <- lmdat2 %>% mutate(spatial_temp = spatial_cv_temp1-spatial_cv_temp2,
-                                interann_temp = interannual_var_temp1-interannual_var_temp2,
-                                spatial_precip = spatial_cv_precip1-spatial_cv_precip2,
-                                interann_precip = interannual_var_precip1-interannual_var_precip2,
-                                rangesize = lograngesize1-lograngesize2,
-                                total_richness = total_richness1 - total_richness2,
-                                congener_richness = congener_richness1 - congener_richness2,
-                                n_pop = n_subpops1 - n_subpops2,
-                                elev_cv = elevation_cv1 - elevation_cv2,
-                                seasonal_temp = seasonal_var_temp1 - seasonal_var_temp2,
-                                seasonal_precip = seasonal_var_precip1 - seasonal_var_precip2,
-                                area = logarea1-logarea2) %>%
+multregdat <- lmdat2 %>% mutate(spatial_temp = spatial_cv_temp2-spatial_cv_temp1,
+                                interann_temp = interannual_var_temp2-interannual_var_temp1,
+                                spatial_precip = spatial_cv_precip2-spatial_cv_precip1,
+                                interann_precip = interannual_var_precip2-interannual_var_precip1,
+                                rangesize = lograngesize2-lograngesize1,
+                                total_richness = total_richness2 - total_richness1,
+                                congener_richness = congener_richness2 - congener_richness1,
+                                n_pop = n_subpops2 - n_subpops1,
+                                elev_cv = elevation_cv2 - elevation_cv1,
+                                seasonal_temp = seasonal_var_temp2 - seasonal_var_temp1,
+                                seasonal_precip = seasonal_var_precip2 - seasonal_var_precip1,
+                                area = logarea2-logarea1) %>%
   dplyr::select(d, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass)
 
 library(usdm)
@@ -313,11 +313,12 @@ summary(multregbest)
 summary(lm(d ~ spatial_temp, data = multregdat))
 ###########################################
 # 1 May: supplemental figures
+# Edited 6 June: clean up figure.
 
 library(cowplot)
 
-xaxisvars <- c('spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'meanlogbodymass')
-xaxislabels <- c('Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Mean body mass (log10 g)')
+xaxisvars <- c('spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area')
+xaxislabels <- c('Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)')
 
 scatterplots <- list()
 
@@ -325,9 +326,9 @@ for (i in 1:length(xaxislabels)) {
   p_i <- ggplot(multregdat, aes_string(x = xaxisvars[i], y = 'd')) +
     geom_point() +
     panel_border(colour='black') +
-    labs(y = 'Tropical CV - temperate CV', x = xaxislabels[i])
+    labs(y = expression(Delta*CV[bodymass]), x = xaxislabels[i])
   scatterplots[[i]] <- p_i
 }
 
 p_all <- plot_grid(plotlist = scatterplots, ncol = 3, labels = letters[1:length(xaxislabels)])
-ggsave('C:/Users/Q/Dropbox/projects/verts/vertnet_results/supplementalscatterplots.png', height = 15, width = 11, dpi = 400)
+ggsave('C:/Users/Q/Dropbox/projects/verts/vertnet_results/supplementalscatterplots.png', p_all, height = 15*.85, width = 11*.85, dpi = 400)
