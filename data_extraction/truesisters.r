@@ -24,12 +24,14 @@ ericsondistmean <- Reduce('+', ericsondist)/length(ericsondist)
 # A true sister pair is defined as taxa A and B such that the nearest neighbor of taxon A is taxon B, and the nearest neighbor of taxon B is taxon A and only taxon A.
 
 sisters <- character(nrow(ericsondistmean))
+# Modified 08 June: add the phylogenetic distance of sister pairs as a column for later analysis.
+dist_to_sister <- numeric(nrow(ericsondistmean))
 
 for (i in 1:nrow(ericsondistmean)) {
 	x <- ericsondistmean[i, -i]
 	name_i <- dimnames(ericsondistmean)[[1]][i]
-	dist_to_sister <- min(x)
-	sisternames <- names(x)[x == dist_to_sister] # Names of potential sisters.
+	dist_to_sister[i] <- min(x)
+	sisternames <- names(x)[x == dist_to_sister[i]] # Names of potential sisters.
 	# Check which of these sisters has taxon i as a sister.
 	for (j in 1:length(sisternames)) {
 		j_index <- which(dimnames(ericsondistmean)[[1]] == sisternames[j])
@@ -41,7 +43,7 @@ for (i in 1:nrow(ericsondistmean)) {
 	
 }
 
-sisters_df <- data.frame(sister1 = dimnames(ericsondistmean)[[1]], sister2 = sisters)
+sisters_df <- data.frame(sister1 = dimnames(ericsondistmean)[[1]], sister2 = sisters, dist = dist_to_sister)
 sisters_df <- subset(sisters_df, sister2 != '')
 sisters_df <- transform(sisters_df, sister1 = as.character(sister1), sister2 = as.character(sister2))
 
@@ -57,7 +59,7 @@ for (i in 1:nrow(sisters_df)) {
 
 sisters_df <- sisters_df[!is_dup,]
 
-write.csv(sisters_df, file = '~/verts/truesisters02feb.csv', row.names = FALSE)
+write.csv(sisters_df, file = '~/verts/truesisters08jun.csv', row.names = FALSE)
 
 
 ####################################################

@@ -6,7 +6,7 @@ library(dplyr)
 library(cowplot)
 
 fp <- 'C:/Users/Q/Dropbox/projects/verts'
-sisters <- read.csv(file.path(fp, 'truesisters02feb.csv'), stringsAsFactors = FALSE)
+sisters <- read.csv(file.path(fp, 'truesisters08jun.csv'), stringsAsFactors = FALSE)
 
 ######################################################
 
@@ -59,6 +59,8 @@ sistersindata <- sister_names %in% vnbird$binomial
 #sister_names[!sistersindata]
 
 vnbird$issister <- vnbird$binomial %in% sister_names
+indices <- pmin(match(vnbird$binomial, sisters$sister1), match(vnbird$binomial, sisters$sister2), na.rm=T)
+vnbird$sisterdist <- sisters$dist[indices]
 missingnames <- vnbird %>% filter(!issister) %>% group_by(binomial) %>% summarize(n = n()) %>% arrange(-n)
 
 # Get the information for each of the pairs.
@@ -68,7 +70,8 @@ bird_summ <- vnbird %>%
   summarize(n = n(), 
             lat = median(decimallatitude, na.rm=T),
             lon = median(decimallongitude, na.rm=T),
-            cv_logmass = sd(log10(massing))/mean(log10(massing)))
+            cv_logmass = sd(log10(massing))/mean(log10(massing)),
+            sisterdist = sisterdist[1])
 
 # Save the summary information.
 vnsis <- vnbird %>% filter(issister)
