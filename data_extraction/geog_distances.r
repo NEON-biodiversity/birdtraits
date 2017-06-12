@@ -8,17 +8,17 @@ sister_join <- left_join(sisters, with(bird_summ, data.frame(sister1=binomial, n
 sister_join <- left_join(sister_join, with(bird_summ, data.frame(sister2=binomial, n2=n, lat2=lat, lon2=lon, cv2=cv_logmass)))
 sister_join <- sister_join[complete.cases(sister_join), ]
 
-sister_join <- mutate(sister_join, lat1abs = abs(lat1), lat2abs = abs(lat2))
+#sister_join <- mutate(sister_join, lat1abs = abs(lat1), lat2abs = abs(lat2))
 
 # Sort them so that lat1 is always the lower latitude.
 for (i in 1:nrow(sister_join)) {
-  if (sister_join$lat1abs[i] > sister_join$lat2abs[i]) {
+  if (sister_join$lat1[i] > sister_join$lat2[i]) {
     tmp <- sister_join[i,]
-    sister_join[i, ] <- tmp[c(2,1,3,8,9,10,11,4,5,6,7,13,12)]
+    sister_join[i, ] <- tmp[c(2,1,3,8,9,10,11,4,5,6,7)]
   }
 }
 
-sister_join <- mutate(sister_join, dlat = lat2abs - lat1abs)
+sister_join <- mutate(sister_join, dlat = lat2 - lat1)
 
 # Get rid of orioles. They are an outlier when it comes to climate.
 sister_join <- filter(sister_join, !grepl('Oriolus',sister1))
@@ -29,7 +29,7 @@ sister_join <- filter(sister_join, !grepl('Oriolus',sister1))
 # Analysis 1: Use the temperate and tropical pairs.
 # NOTE: It's possible we may have to remove Butorides because the two species were lumped at one point.
 
-sister_troptemp <- filter(sister_join, lat1abs < 23.5 & lat2abs > 23.5) %>%
+sister_troptemp <- filter(sister_join, lat1 < 23.5 & lat2 > 23.5) %>%
   mutate(dcv = cv2 - cv1)
 
 ggplot(sister_troptemp, aes(x=dlat, y=dcv)) + geom_point()

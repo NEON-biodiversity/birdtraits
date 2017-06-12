@@ -1,6 +1,7 @@
 # All loading, processing, and plotting of data for bird trait main figure (and results, not including bootstraps)
 # 27 April 2017
 # 1 May 2017: multiple regression with VIF variable selection added.
+# 13 Jun 2017: correct absolute value of latitude, which changes all results further down.
 
 library(dplyr)
 library(cowplot)
@@ -64,11 +65,12 @@ vnbird$sisterdist <- sisters$dist[indices]
 missingnames <- vnbird %>% filter(!issister) %>% group_by(binomial) %>% summarize(n = n()) %>% arrange(-n)
 
 # Get the information for each of the pairs.
+# Edited 13 June: need median of absolute value of latitude and longitude.
 bird_summ <- vnbird %>% 
   filter(issister) %>% 
   group_by(binomial) %>% 
   summarize(n = n(), 
-            lat = median(decimallatitude, na.rm=T),
+            lat = median(abs(decimallatitude), na.rm=T),
             lon = median(decimallongitude, na.rm=T),
             cv_logmass = sd(log10(massing))/mean(log10(massing)),
             sisterdist = sisterdist[1])
@@ -81,7 +83,7 @@ sister_join <- left_join(sisters, with(bird_summ, data.frame(sister1=binomial, n
 sister_join <- left_join(sister_join, with(bird_summ, data.frame(sister2=binomial, n2=n, lat2=lat, cv2=cv_logmass)))
 sister_join <- sister_join[complete.cases(sister_join), ]
 
-sister_join <- mutate(sister_join, lat1 = abs(lat1), lat2 = abs(lat2))
+#sister_join <- mutate(sister_join, lat1 = abs(lat1), lat2 = abs(lat2))
 
 # Sort them so that lat1 is always the lower latitude.
 for (i in 1:nrow(sister_join)) {
