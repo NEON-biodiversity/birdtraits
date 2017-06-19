@@ -3,6 +3,8 @@
 
 vnsis <- vnbird %>% filter(issister)
 #write.csv(with(vnsis, data.frame(binomial, lat=decimallatitude, lon=decimallongitude, massing=massing)), file = file.path(fp, 'bird_coords_mass.csv'), row.names = FALSE)
+# Write all vnsis rows for manual flagging.
+write.csv(vnsis, file = file.path(fp, 'bird_records_flagged.csv'), row.names = FALSE)
 
 sister_join <- left_join(sisters, with(bird_summ, data.frame(sister1=binomial, n1=n, lat1=lat, lon1=lon, cv1=cv_logmass)))
 sister_join <- left_join(sister_join, with(bird_summ, data.frame(sister2=binomial, n2=n, lat2=lat, lon2=lon, cv2=cv_logmass)))

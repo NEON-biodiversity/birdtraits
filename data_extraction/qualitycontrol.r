@@ -18,6 +18,9 @@ y2/length(goodyrs)
 library(cowplot)
 library(dplyr)
 spnames <- unique(vnsis$binomial)
+
+write.csv(spnames, file.path(fp, 'allmaps_pagenumber.csv'))
+
 pb <- txtProgressBar(0, length(spnames), style = 3)
 count <- 0
 pdf('~/figs/allmaps_vertnetcoords.pdf')
