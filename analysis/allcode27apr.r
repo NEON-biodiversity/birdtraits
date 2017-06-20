@@ -37,7 +37,9 @@ vnbird_qc3 <- filter(vnbird_qc2, !lifestage %in% remove_names)
 
 lifet3 <- table(vnbird_qc3$lifestage)
 
-remove_names3 <- grep('im|nat|larv|young|nestl|fledg|unoss|pullus|hatch|chick|down', names(lifet3), ignore.case = TRUE, value = TRUE)
+# modified 20 jun: add "egg" to list of removed names.
+
+remove_names3 <- grep('im|nat|larv|young|nestl|fledg|unoss|pullus|hatch|chick|down|egg', names(lifet3), ignore.case = TRUE, value = TRUE)
 vnbird_qc4 <- filter(vnbird_qc3, !lifestage %in% remove_names3)
 
 vnbird <- vnbird_qc4
