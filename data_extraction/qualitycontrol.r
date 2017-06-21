@@ -44,3 +44,17 @@ pdf('~/figs/allmaps_vertnetcoords.pdf')
   }
 dev.off()
 close(pb)
+
+####
+# 21 June: after flagging records, find any more bad outliers.
+vnsis_flag <- read.csv('C:/Users/Q/Dropbox/projects/verts/bird_records_flagged.csv', stringsAsFactors = FALSE)
+
+library(dplyr)
+vnsd <- vnsis_flag %>% group_by(binomial) %>% 
+  summarize(sd_mass = sd(massing), 
+            mass_hi = mean(massing) + 3*sd_mass, 
+            mass_lo = mean(massing) - 3*sd_mass)
+vnsis_flag <- vnsis_flag %>% left_join(vnsd) %>% mutate(outlierflag = massing > mass_hi | massing < mass_lo)
+table(vnsis_flag$outlierflag)
+
+write.csv(vnsis_flag, file = 'C:/Users/Q/Dropbox/projects/verts/bird_records_flagged.csv', row.names = FALSE)
