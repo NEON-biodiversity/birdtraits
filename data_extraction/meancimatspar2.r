@@ -3,7 +3,7 @@
 # Version 2: load ~40 rows at a time instead of 1 row at a time in 40 iterations of a loop.
 
 n_tasks <- 250 # approx. 40 rows per task.
-n_rows <- 9994
+n_rows <- 9993
 n_mats <- 10000
 
 task <- as.numeric(Sys.getenv('PBS_ARRAYID'))
