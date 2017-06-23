@@ -1,9 +1,9 @@
 # Extract climate for sister taxa records.
 
 library(raster)
-bird <- read.csv('~/verts/bird_coords_mass.csv', stringsAsFactors = FALSE)
+bird <- read.csv('~/verts/birdcoords_23Jun.csv', stringsAsFactors = FALSE)
 fp <- '/mnt/research/plz-lab/NEON/external_data/raw_external_data/bioclim'
-bird_coord <- data.frame(x = bird$lon, y = bird$lat)
+bird_coord <- data.frame(x = bird$decimallongitude, y = bird$decimallatitude)
 
 bird_clim <- list()
 
@@ -22,4 +22,4 @@ names(bird_clim) <- col_names
 bird_clim <- bird_clim[, c(paste0('bio',1:19), 'prec','temp')]
 names(bird_clim)[20:21] <- c('prec_interannual', 'temp_interannual')
 
-write.csv(bird_clim, file = '~/verts/bird_clim.csv', row.names = FALSE)
+write.csv(bird_clim, file = '~/verts/bird_clim_23Jun.csv', row.names = FALSE)

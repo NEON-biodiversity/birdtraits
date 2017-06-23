@@ -5,12 +5,12 @@
 setwd('/mnt/research/plz-lab/SRTM/')
 
 # Load points
-bird <- read.csv('~/verts/bird_coords_mass.csv', stringsAsFactors = FALSE)
-bird <- subset(bird, !is.na(lat) & !is.na(lon))
+bird <- read.csv('~/verts/birdcoords_23Jun.csv', stringsAsFactors = FALSE)
+bird <- subset(bird, !is.na(decimallatitude) & !is.na(decimallongitude))
 
 # Get coordinates for all points that need elevations
 #bird <- transform(bird, latr = round(lat), lonr = round(lon))
-birdcoords <- unique(cbind(bird$lat, bird$lon))
+birdcoords <- unique(cbind(bird$decimallatitude, bird$decimallongitude))
 
 library(raster)
 

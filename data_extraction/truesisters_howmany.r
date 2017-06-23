@@ -1,5 +1,6 @@
 # code to see how many of each of the lists the pairs are in.
 
+all_lists <- list()
 pb <- txtProgressBar(0,10000,style=3)
 
 for (i in 1:10000) {
@@ -21,6 +22,7 @@ sister_summary <- all_lists %>%
 			  mediandist = median(dist),
 			  dist025 = quantile(dist, probs = 0.025),
 			  dist975 = quantile(dist, probs = 0.975)) %>%
+	ungroup %>%		  
 	select(-bothnames)
 	
 write.csv(sister_summary, file = '~/verts/sister_summary.csv', row.names = FALSE)
