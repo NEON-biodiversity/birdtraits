@@ -163,7 +163,12 @@ write.csv(sister_troptemp, file = file.path(fp,'sister_troptemp_23Jun.csv'), row
 
 #########################################
 
+fp <- 'C:/Users/Q/Dropbox/projects/verts'
+sister_troptemp <- read.csv(file.path(fp, 'sister_troptemp_23Jun.csv'), stringsAsFactors = FALSE)
+
 sister_alldat <- read.csv(file.path(fp, 'sister_alldat_25Jun.csv'), stringsAsFactors = FALSE)
+
+library(dplyr)
 
 # Do multiple regression on deltas to test different hypotheses.
 # For diet, use a categorical classification: is either of the pair carnivorous or omnivorous?
@@ -184,8 +189,9 @@ multregdat <- sister_alldat %>% mutate(spatial_temp = spatial_cv_temp2-spatial_c
                                        area = log10(area2+1)-log10(area1+1),
                                        meanlogbodymass = apply(cbind(log10(BodyMass.Value1), log10(BodyMass.Value2)), 1, mean),
                                        predator = Diet.5Cat1 %in% predtypes | Diet.5Cat2 %in% predtypes,
+                                       migrant = migrant_status1 %in% c('partial','obligate') | migrant_status2 %in% c('partial','obligate'),
                                        dist_phylo = mediandist) %>%
-  dplyr::select(dcv, dlat, dist_phylo, dist_slc, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass, predator) 
+  dplyr::select(dcv, dlat, dist_phylo, dist_slc, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass, predator, migrant) 
 
 multreg_complete <- filter(multregdat, complete.cases(multregdat))
 
@@ -221,11 +227,138 @@ confint(lm_best4)
 ####################################################################################################
 # Plot map.
 
+library(cowplot)
+
+# Recreate data.
+
+mapdat <- vnsis_flag2 %>% 
+  filter(!outlierflag) %>% 
+  group_by(binomial) %>% 
+  summarize(n = n(), 
+            lat = median(decimallatitude, na.rm=T),
+            lon = median(decimallongitude, na.rm=T),
+            cv_logmass = sd(log10(massing))/mean(log10(massing)))
+
+sister1map <- subset(mapdat, binomial %in% sister_alldat$sister1)
+sister2map <- subset(mapdat, binomial %in% sister_alldat$sister2)
+names(sister1map) <- paste0(names(sister1map), '1')
+names(sister2map) <- paste0(names(sister2map), '2')
+mapdat_sister <- cbind(sister1map, sister2map) %>% mutate(d = cv_logmass2 - cv_logmass1)
+
+heatramp <- colorRampPalette(RColorBrewer::brewer.pal(name='YlOrRd', n=9),bias=2,space="rgb")(50)
+fillScale <- scale_fill_gradientn(colours = heatramp, name = 'Body mass variability')
+linetypeScale <- scale_linetype_manual(name = '', values = c('dotted','solid'), labels = c('Tropical\nmore variable','Nontropical\nmore variable'))
+
+worldMap <- borders('world', fill='gray75', color='black')
+p_map <- ggplot() + worldMap + 
+  geom_segment(aes(x=lon2, y=lat2, xend=lon1, yend=lat1, linetype = d>0), data=mapdat_sister) +
+  geom_point(aes(x=lon1,y=lat1, fill=cv_logmass1), data=mapdat_sister, pch=21) +
+  geom_point(aes(x=lon2,y=lat2, fill=cv_logmass2), data=mapdat_sister, pch=21) +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(breaks = c(-23.5, 23.5), labels = c('23.5° S', '23.5° N'), expand=c(0,0)) +
+  fillScale + linetypeScale +
+  theme(panel.background = element_rect(fill='skyblue'),
+        panel.grid.major.y = element_line(color='black', size=1.1),
+        panel.grid.major.x = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position=c(0,0), 
+        legend.direction = 'horizontal',
+        legend.justification = c(0,0),
+        legend.text = element_text(size=10)) + 
+  coord_map('albers',0,0, ylim = c(-60,60))
+
 ####################################################################################################
 # Plot interaction plot.
+
+ylabel <- expression(paste('CV of log'[10], ' body mass'))		
+
+plotdat <- data.frame(realm = rep(c('tropical','nontropical'), each=nrow(sister_troptemp)),
+                      taxon = c(sister_troptemp$sister1, sister_troptemp$sister2),
+                      pairid = 1:nrow(sister_troptemp),
+                      cv_logmass = c(sister_troptemp$cv1, sister_troptemp$cv2))
+
+p_int <- ggplot(plotdat, aes(x = realm, y = cv_logmass)) +
+  geom_line(aes(group = pairid), color = 'gray75') + 
+  geom_point(aes(group = pairid)) +
+  stat_summary(aes(group = 1), geom = 'line', color = 'red', fun.y = 'mean', size = 1.5) +
+  stat_summary(geom = 'pointrange', color = 'red', fun.data = 'mean_se') +
+  scale_x_discrete(expand=c(0.1,0.1), name='Realm') +
+  labs(y = ylabel) +
+  panel_border(colour='black')
+
+phist <- ggplot(sister_troptemp, aes(x = cv1 - cv2)) +
+  geom_histogram(bins = 15) +
+  geom_vline(xintercept = -0.020, color = 'red', lwd = 2) +
+  geom_vline(xintercept = -0.0092, color = 'red', lwd = 0.5) +
+  geom_vline(xintercept = 0, color = 'blue', lty = 3) +
+  scale_y_continuous(limits = c(0,53), expand = c(0,0)) +
+  labs(x = 'tropical CV - nontropical CV', y = 'count of species pairs') +
+  panel_border(colour='black')
 
 ####################################################################################################
 # Plot scatterplots of covariates that go into the main text.
 
+hl <- geom_hline(yintercept = 0, color = 'indianred3')
+vl <- geom_vline(xintercept = 0, color = 'indianred3')
+
+lmtemp <- lm(dcv ~ interann_temp, data=multreg_complete)
+lmprec <- lm(dcv ~ seasonal_precip, data=multreg_complete)
+lmrange <- lm(dcv ~ rangesize, data=multreg_complete)
+
+pcov1 <- ggplot(multreg_complete, aes(x = interann_temp, y = dcv)) +
+  hl + vl +
+  geom_point() + stat_smooth(method='lm', se=F) +
+  panel_border(colour='black') + 
+  scale_y_continuous(limits = c(-0.11, 0.12)) + scale_x_continuous(limits = c(-4,6)) +
+  labs(x = expression(paste('interannual ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(interann_temp=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5), size = 3)
+
+pcov2 <- ggplot(multreg_complete, aes(x = rangesize, y = dcv)) +
+  hl + vl +
+  geom_point() + stat_smooth(method='lm', se=F) +
+  panel_border(colour='black') + 
+  scale_y_continuous(limits = c(-0.1, 0.12)) +
+  labs(x = expression(paste(Delta * log[10]," range size")), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(rangesize=c(Inf, -2.5), dcv = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5), size = 3)
+
+pcov3 <- ggplot(multreg_complete, aes(x = seasonal_precip, y = dcv)) +
+  hl + vl +
+  geom_point() + stat_smooth(method='lm', se=F) +
+  panel_border(colour='black') + 
+  labs(x = expression(paste('seasonal ',Delta * CV[precipitation])), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(seasonal_precip=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5), size = 3)
+
+
+####################################################################################################
+# Assemble the plots into a single figure.
+
+smalllab <- theme(axis.title.x=element_text(size=10),
+                  axis.title.y=element_text(size=10))
+
+bottom_row <- plot_grid(p_int, pcov1, pcov3, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
+full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(1, 0.9))
+ggsave(file.path(fp, 'vertnet_results/multipanelplot1_revised.png'), full_plot, height=6, width=8, dpi=400)
+
 ####################################################################################################
 # Plot scatterplots of covariates that go into the supplement.
+
+xaxisvars <- c('spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'predator', 'migrant', 'meanlogbodymass')
+xaxislabels <- c('Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Predator status', 'Migrant status', 'Mean of log body mass')
+
+scatterplots <- list()
+
+for (i in 1:length(xaxislabels)) {
+  p_i <- ggplot(multregdat, aes_string(x = xaxisvars[i], y = 'dcv')) +
+    geom_point() +
+    panel_border(colour='black') +
+    labs(y = expression(Delta*CV[bodymass]), x = xaxislabels[i])
+  scatterplots[[i]] <- p_i
+}
+
+p_all <- plot_grid(plotlist = scatterplots, ncol = 3, labels = letters[1:length(xaxislabels)])
+ggsave('C:/Users/Q/Dropbox/projects/verts/vertnet_results/supplementalscatterplots_revised.png', p_all, height = 15*.85, width = 11*.85, dpi = 400)
