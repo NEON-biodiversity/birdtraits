@@ -57,11 +57,11 @@ save(list = objname, file = paste0('~/verts/mapoutput/', objname, '.R'))
 # For each data point, get the richness and the richness of confamilial and congeneric individuals.
 
 fp <- '~/verts/mapoutput'
-lapply(as.list(file.path(fp, dir(fp))), load, .GlobalEnv)
+lapply(as.list(file.path(fp, dir(fp, pattern = '23Jun'))), load, .GlobalEnv)
 overlap_all <- do.call('c', lapply(paste0('overlap', 1:50), get))
 
-bird <- read.csv('~/verts/bird_coords_mass.csv', stringsAsFactors = FALSE)
-bird <- subset(bird, !is.na(lat) & !is.na(lon))
+bird <- read.csv('~/verts/birdcoords_23Jun.csv', stringsAsFactors = FALSE)
+bird <- subset(bird, !is.na(decimallatitude) & !is.na(decimallongitude))
 
 # Get genus for each of the data points
 polygondat <- read.csv('~/verts/polygondat.csv', stringsAsFactors = FALSE)
@@ -81,4 +81,4 @@ for (i in 1:length(overlap_all)) {
 richness_df <- data.frame(total_richness, congener_richness)
 bird <- cbind(bird, richness_df)
 
-write.csv(bird, '~/verts/bird_withrichness.csv', row.names = FALSE)
+write.csv(bird, '~/verts/bird_withrichness_23Jun.csv', row.names = FALSE)

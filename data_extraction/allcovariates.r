@@ -166,6 +166,39 @@ trait_sisters <- cbind(foraging_sisters, lifehist_sisters[,-1])
 
 write.csv(trait_sisters, file = file.path(fp,'trait_sisters_23Jun.csv'), row.names = FALSE)
 
+#### COVARIATE SET 11
+
+# Compile the outputs that were run in parallel on the cluster.
+# For each data point, get the richness and the richness of confamilial and congeneric individuals.
+
+fp <- '~/verts/mapoutput'
+lapply(as.list(file.path(fp, dir(fp, pattern = '23Jun'))), load, .GlobalEnv)
+overlap_all <- do.call('c', lapply(paste0('overlap', 1:50), get))
+
+bird <- read.csv('~/verts/birdcoords_23Jun.csv', stringsAsFactors = FALSE)
+bird <- subset(bird, !is.na(decimallatitude) & !is.na(decimallongitude))
+
+# Get genus for each of the data points
+polygondat <- read.csv('~/verts/polygondat.csv', stringsAsFactors = FALSE)
+bird$genus <- sapply(strsplit(bird$binomial, '_'), '[', 1)
+
+# Get the richness and congeneric richness at each data point.
+total_richness <- sapply(overlap_all, length)
+congener_richness <- numeric(length(overlap_all))
+
+bbin <- gsub('_', ' ', bird$binomial)
+
+for (i in 1:length(overlap_all)) {
+  spp_i <- polygondat[overlap_all[[i]], ]
+  congener_richness[i] <- sum(bird$genus[i] == spp_i$genus & bbin[i] != spp_i$SCINAME)
+}
+
+richness_df <- data.frame(total_richness, congener_richness)
+bird <- cbind(bird, richness_df)
+
+write.csv(bird, '~/verts/bird_withrichness_23Jun.csv', row.names = FALSE)
+
+
 #### COVARIATE SET 12
 
 # Number of subpopulations from which each set of specimens was collected. Need to calculate.
@@ -180,3 +213,56 @@ write.csv(nsubpops, file = file.path(fp, 'nsubpops_23Jun.csv'), row.names = FALS
 
 #### COVARIATE SET 13
 
+# Elevations were extracted on cluster.
+
+library(dplyr)
+fp <- ('C:/Users/Q/Dropbox/projects/verts')
+bird <- read.csv(file.path(fp, 'birdcoords_23Jun.csv'), stringsAsFactors = FALSE)
+bird_elev <- read.csv(file.path(fp, 'bird_elev_23Jun.csv'))
+bird <- left_join(bird, bird_elev %>% rename(decimallatitude=lat, decimallongitude=lon))
+
+# Get CV of elevation. Ignore repeats. Add minimum elevation so that everything is greater or equal to zero
+bird_topovar <- bird %>%
+  mutate(elev = elev + 77) %>%
+  group_by(binomial) %>%
+  summarize(elevation_cv = sd(unique(elev), na.rm = T)/mean(unique(elev), na.rm = T))
+
+write.csv(bird_topovar, file = file.path(fp, 'topo_23Jun.csv'), row.names = FALSE)
+
+
+#################################################################################
+
+# Join all covariates to the long and wide form dataframes.
+
+bird_clim <- read.csv(file.path(fp, 'bird_clim_summstats_23Jun.csv'), stringsAsFactors = FALSE)
+bird_range <- read.csv(file.path(fp, 'botw_ranges_23Jun.csv'), stringsAsFactors = FALSE)
+bird_trait <- read.csv(file.path(fp, 'trait_sisters_23Jun.csv'), stringsAsFactors = FALSE)
+bird_richness <- read.csv(file.path(fp, 'bird_withrichness_23Jun.csv'), stringsAsFactors = FALSE)
+bird_nsubpop <- read.csv(file.path(fp, 'nsubpops_23Jun.csv'), stringsAsFactors = FALSE)
+bird_topovar <- read.csv(file.path(fp, 'topo_23Jun.csv'), stringsAsFactors = FALSE)
+
+bird_richness_summ <- bird_richness %>%
+  group_by(binomial) %>%
+  summarize(total_richness = median(total_richness, na.rm=T),
+            congener_richness = median(congener_richness, na.rm=T))
+
+bird_allcov <- bird_clim %>% 
+  left_join(rename(bird_range, binomial=taxon)) %>%
+  left_join(bird_trait) %>%
+  left_join(rename(bird_nsubpop, nsubpop=n)) %>%
+  left_join(bird_topovar) %>% 
+  left_join(bird_richness_summ)
+
+sister1cov <- sister2cov <- bird_allcov
+names(sister1cov) <- paste0(names(sister1cov), '1')
+names(sister2cov) <- paste0(names(sister2cov), '2')
+names(sister1cov)[1] <- 'sister1'
+names(sister2cov)[1] <- 'sister2'
+
+sister_alldat <- sister_troptemp %>%
+  left_join(sister1cov) %>%
+  left_join(sister2cov)
+
+sister_alldat[sister_alldat == -999] <- NA
+
+write.csv(sister_alldat, file = file.path(fp, 'sister_alldat_25Jun.csv'), row.names = FALSE)

@@ -162,19 +162,61 @@ sister_pair_long <-
 write.csv(sister_troptemp, file = file.path(fp,'sister_troptemp_23Jun.csv'), row.names = FALSE)
 
 #########################################
-load(file.path(fp, 'sistercovariates.r'))
 
-# Recreate covariate data frame with the new reduced list of sister pairs.
-# On second thought it is probably better to go back and recalculate them all since some are dependent on coordinates that I corrected.
-sister_alldat2 <- subset(sister_alldat, sister1 %in% sister_troptemp$sister1)
-sister_troptemp$sister2 %in% sister_alldat2$sister2
-sister_troptemp <- sister_troptemp[order(sister_troptemp$sister1),]
-sister_alldat2 <- sister_alldat2[order(sister_alldat2$sister1),]
+sister_alldat <- read.csv(file.path(fp, 'sister_alldat_25Jun.csv'), stringsAsFactors = FALSE)
 
-all(sister_troptemp$sister1==sister_alldat2$sister1)
-all(sister_troptemp$sister2==sister_alldat2$sister2)
+# Do multiple regression on deltas to test different hypotheses.
+# For diet, use a categorical classification: is either of the pair carnivorous or omnivorous?
 
-sister_alldat_final <- cbind(sister_troptemp, sister_alldat2)
+predtypes <- c('Invertebrate','Omnivore','VertFishScav')
+
+multregdat <- sister_alldat %>% mutate(spatial_temp = spatial_cv_temp2-spatial_cv_temp1,
+                                       interann_temp = interannual_var_temp2-interannual_var_temp1,
+                                       spatial_precip = spatial_cv_precip2-spatial_cv_precip1,
+                                       interann_precip = interannual_var_precip2-interannual_var_precip1,
+                                       rangesize = log10(range_size2+1)-log10(range_size1+1),
+                                       total_richness = total_richness2 - total_richness1,
+                                       congener_richness = congener_richness2 - congener_richness1,
+                                       n_pop = nsubpop2 - nsubpop1,
+                                       elev_cv = elevation_cv2 - elevation_cv1,
+                                       seasonal_temp = seasonal_var_temp2 - seasonal_var_temp1,
+                                       seasonal_precip = seasonal_var_precip2 - seasonal_var_precip1,
+                                       area = log10(area2+1)-log10(area1+1),
+                                       meanlogbodymass = apply(cbind(log10(BodyMass.Value1), log10(BodyMass.Value2)), 1, mean),
+                                       predator = Diet.5Cat1 %in% predtypes | Diet.5Cat2 %in% predtypes,
+                                       dist_phylo = mediandist) %>%
+  dplyr::select(dcv, dlat, dist_phylo, dist_slc, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass, predator) 
+
+multreg_complete <- filter(multregdat, complete.cases(multregdat))
+
+# Do preliminary variable selection to screen out variables that are redundant
+
+multreg_pred <- multreg_complete[,-1]
+cor(multreg_pred)
+usdm::vif(multreg_pred) # Interannual temperature variation and seasonal temperature variation are closely related. However we're interested in which of these might be driving things so leave them both in for now.
+
+lm_full <- lm(dcv ~ ., data = multreg_complete, na.action = 'na.pass')
+
+# Do multimodel inference using at most 5 variables.
+library(MuMIn)
+lm_dredge <- dredge(lm_full, m.lim = c(0,5))
+lm_best <- subset(lm_dredge, delta < 2)
+
+plot(lm_best)
+
+# Four variables emerge: range size, interannual temperature variation, seasonal precipitation variation, and convex hull of collection area.
+# They are present in most of the best models, and are the 4 variables in the single best model.
+lm_dredge[1,]
+lm_best4 <- lm(dcv ~ rangesize + interann_temp + seasonal_precip + area, data = multreg_complete)
+
+summary(lm_best4)
+confint(lm_best4)
+
+# Weak explanation of pattern. 
+# If temperate range size is bigger than tropical range size, temperate cv is bigger than tropical cv.
+# If temperate interannual temp var is bigger, temperate cv is bigger (marginal)
+# If temperate seasonal precip var is SMALLER, temperate cv is bigger
+# If area of collection locations in temperate is bigger, temperate cv is bigger (marginal)
 
 ####################################################################################################
 # Plot map.
