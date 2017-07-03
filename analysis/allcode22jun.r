@@ -246,7 +246,7 @@ names(sister2map) <- paste0(names(sister2map), '2')
 mapdat_sister <- cbind(sister1map, sister2map) %>% mutate(d = cv_logmass2 - cv_logmass1)
 
 heatramp <- colorRampPalette(RColorBrewer::brewer.pal(name='YlOrRd', n=9),bias=2,space="rgb")(50)
-fillScale <- scale_fill_gradientn(colours = heatramp, name = 'Body mass variability')
+fillScale <- scale_fill_gradientn(colours = heatramp, name = 'Body mass variability', breaks=c(.05,.1,.15), labels=c('.05','.10','.15'))
 linetypeScale <- scale_linetype_manual(name = '', values = c('dotted','solid'), labels = c('Tropical\nmore variable','Nontropical\nmore variable'))
 
 worldMap <- borders('world', fill='gray75', color='black')
@@ -282,9 +282,9 @@ plotdat <- data.frame(realm = rep(c('tropical','nontropical'), each=nrow(sister_
 p_int <- ggplot(plotdat, aes(x = realm, y = cv_logmass)) +
   geom_line(aes(group = pairid), color = 'gray75') + 
   geom_point(aes(group = pairid)) +
-  stat_summary(aes(group = 1), geom = 'line', color = 'red', fun.y = 'mean', size = 1.5) +
-  stat_summary(geom = 'pointrange', color = 'red', fun.data = 'mean_se') +
-  scale_x_discrete(expand=c(0.1,0.1), name='Realm') +
+  stat_summary(aes(group = 1), geom = 'line', color = 'red', fun.y = 'mean', size = 0.8) +
+  stat_summary(geom = 'errorbar', color = 'red', fun.data = 'mean_se', width = 0.1) +
+  scale_x_discrete(expand=c(0.1,0.1), name='Zone') +
   labs(y = ylabel) +
   panel_border(colour='black')
 
