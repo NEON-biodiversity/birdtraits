@@ -300,21 +300,23 @@ phist <- ggplot(sister_troptemp, aes(x = cv1 - cv2)) +
 ####################################################################################################
 # Plot scatterplots of covariates that go into the main text.
 
-hl <- geom_hline(yintercept = 0, color = 'indianred3')
-vl <- geom_vline(xintercept = 0, color = 'indianred3')
+hl <- geom_hline(yintercept = 0, color = 'gray80', lwd = 0.4)
+vl <- geom_vline(xintercept = 0, color = 'gray80', lwd = 0.4)
 
 lmtemp <- lm(dcv ~ interann_temp, data=multreg_complete)
 lmprec <- lm(dcv ~ seasonal_precip, data=multreg_complete)
 lmrange <- lm(dcv ~ rangesize, data=multreg_complete)
 
+y_scale <- scale_y_continuous(limits = c(-0.11, 0.125))
+
 pcov1 <- ggplot(multreg_complete, aes(x = interann_temp, y = dcv)) +
   hl + vl +
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
-  scale_y_continuous(limits = c(-0.11, 0.12)) + scale_x_continuous(limits = c(-4,6)) +
+  y_scale + scale_x_continuous(limits = c(-4,6)) +
   labs(x = expression(paste('interannual ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
-  geom_text(data=data.frame(interann_temp=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
-            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5), size = 3)
+  geom_text(data=data.frame(interann_temp=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical  \nmore variable  ', '  Tropical\n  more variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
 
 pcov2 <- ggplot(multreg_complete, aes(x = rangesize, y = dcv)) +
   hl + vl +
@@ -329,9 +331,10 @@ pcov3 <- ggplot(multreg_complete, aes(x = seasonal_precip, y = dcv)) +
   hl + vl +
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
+  y_scale +
   labs(x = expression(paste('seasonal ',Delta * CV[precipitation])), y = expression(Delta * CV[bodymass])) +
-  geom_text(data=data.frame(seasonal_precip=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
-            aes(label=lab), hjust = c(1,0), vjust = c(1,-.5), size = 3)
+  geom_text(data=data.frame(seasonal_precip=c(Inf, -Inf), dcv = c(Inf, -Inf), lab = c('Nontropical  \nmore variable  ', '  Tropical\n  more variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
 
 
 ####################################################################################################
