@@ -94,6 +94,9 @@ ttests <- list()
 
 vnbird_good <- vnsis_flag2 %>% filter(!outlierflag)
 
+#### save this object for use in online archived code
+write.csv(vnbird_good[,c('binomial','massing')], file='C:/Users/Q/Dropbox/projects/verts/manuscript/archive/raw_body_mass_data.csv', row.names = FALSE)
+
 set.seed(28462)
 
 pb <- txtProgressBar(0, nsim, style = 3)
