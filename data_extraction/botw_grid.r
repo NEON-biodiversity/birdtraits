@@ -82,3 +82,20 @@ richness_df <- data.frame(total_richness, congener_richness)
 bird <- cbind(bird, richness_df)
 
 write.csv(bird, '~/verts/bird_withrichness_23Jun.csv', row.names = FALSE)
+
+
+###################################################################
+
+# Update for revision 09 Oct.
+# Find centroids of polygons.
+
+botw_centroids <- getSpPPolygonsLabptSlots(bpoly)
+polygondat <- bpoly@data[,c('SCINAME','PRESENCE','ORIGIN','SEASONAL')]
+polygondat$genus <- sapply(strsplit(as.character(polygondat$SCINAME), ' '), '[', 1)
+write.csv(cbind(polygondat, botw_centroids), file = '~/verts/polygon_centroids.csv', row.names = FALSE)
+
+# Supposed to be better but takes too long:
+# writeSpatialShape(bpoly, "bpoly")
+# btw_cents <- coordinates(bpoly)
+# btw_cents <- SpatialPointsDataFrame(coords=btw_cents, data=bpoly@data, 
+                  # proj4string=crswgs84)
