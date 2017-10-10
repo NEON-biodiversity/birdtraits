@@ -45,3 +45,162 @@ for (i in spnames) {
 dev.off()
 close(pb)
 
+####
+# 10 Oct.
+# Use centroids calculated on hpcc to check whether classification based on centroids of year-round or breeding polygons
+# matches classification based on median latitude of specimens.
+
+library(dplyr)
+
+fprev <- 'C:/Users/Q/Dropbox/projects/verts/manuscript/revision'
+botw_cents <- read.csv(file.path(fprev, 'polygon_centroids.csv'), stringsAsFactors = FALSE)
+
+# Metadata location http://datazone.birdlife.org/species/spcdistPOS
+# Use only resident and breeding polygons, native, and presence status 1-3
+botw_filtered <- botw_cents %>%
+  filter(ORIGIN %in% 1, SEASONAL %in% 1:2, PRESENCE %in% 1:3) %>%
+  mutate(realm = 'tropical')
+
+botw_filtered$realm[abs(botw_filtered$X2) > 23.5] <- 'nontropical'
+
+
+#####################
+
+####################################################################################################
+# Load data that has been flagged for bad values and outliers that are due to typos, and clean it up.
+
+vnsis_flag <- read.csv('C:/Users/Q/Dropbox/projects/verts/bird_records_flagged.csv', stringsAsFactors = FALSE)
+table(vnsis_flag$flag)
+
+# Remove invalid, not_native, and not_wild. If typo or absent, use the corrected numbers I put in. If listed as opposite sign, change the sign and replace.
+
+vnsis_flag <- filter(vnsis_flag, !flag %in% c('invalid','not_native','not_wild'))
+latflag1 <- vnsis_flag$flag %in% c('lat_typo','latlong_typo','latlong_absent')
+latflag2 <- vnsis_flag$flag %in% c('lat_opp','latlong_opp')
+vnsis_flag$decimallatitude[latflag1] <- as.numeric(vnsis_flag$correct_lat[latflag1])
+vnsis_flag$decimallatitude[latflag2] <- -vnsis_flag$decimallatitude[latflag2]
+
+lonflag1 <- vnsis_flag$flag %in% c('long_typo','latlong_typo','latlong_absent')
+lonflag2 <- vnsis_flag$flag %in% c('long_opp','latlong_opp')
+vnsis_flag$decimallongitude[lonflag1] <- as.numeric(vnsis_flag$correct_lon[lonflag1])
+vnsis_flag$decimallongitude[lonflag2] <- -vnsis_flag$decimallongitude[lonflag2]
+
+# 22 June: flag those records that are greater than or less than 10x the median value for the species.
+# 10 times is a lot for things to be varying and probably indicates a mistake.
+
+vnfactor <- vnsis_flag %>% group_by(binomial) %>%
+  summarize(median_mass = median(massing, na.rm = TRUE))
+vnsis_flag2 <- vnsis_flag %>% left_join(vnfactor) %>% mutate(outlierflag = massing > median_mass * 10 | massing < median_mass / 10)
+table(vnsis_flag2$outlierflag) # 1833 outliers flagged if 5x, 1178 flagged if 10x
+
+# Try to match botw with vertnet.
+botw_filtered <- mutate(botw_filtered, binomial = gsub('\\ ', '_', SCINAME))
+
+vnsis_spnames <- unique(vnsis_flag2$binomial)
+
+badnames <- vnsis_spnames[!vnsis_spnames %in% botw_filtered$binomial]
+# Must correct about 300 species names to make these match. Argh.
+#write.csv(data.frame(vertnet_name = badnames), file=file.path(fprev, 'correctednames.csv'), row.names = FALSE)
+
+#z <- function(x) grep(x, botw_filtered$binomial, value = TRUE)
+
+# Load manually corrected names.
+goodnames <- read.csv(file.path(fprev, 'correctednames_botw_vertnet.csv'), stringsAsFactors = FALSE)
+
+# Change the BOTW names to Vertnet names.
+goodnames <- mutate(goodnames,
+                    vertnet_species = sapply(strsplit(vertnet_name, '_'), '[', 2))
+goodnames$vertnet_species[!goodnames$botw_species==''] <- goodnames$botw_species[!goodnames$botw_species=='']
+goodnames <- mutate(goodnames,
+                    botw_name = paste(botw_genus, vertnet_species, sep = '_'))
+
+for (i in 1:nrow(goodnames)) {
+  idx <- which(botw_filtered$binomial == goodnames$botw_name[i])
+  botw_filtered$binomial[idx] <- goodnames$vertnet_name[i] 
+}
+
+vnsis_spnames[!vnsis_spnames %in% botw_filtered$binomial]
+
+# Correct the names in vertnet if needed ***TO*** the BOTW name.
+# This only refers to lumped species
+vnsis_flag2$binomial[vnsis_flag2$binomial == 'Aphelocoma_insularis'] <- 'Aphelocoma_californica'
+vnsis_flag2$binomial[vnsis_flag2$binomial == 'Carduelis_hornemanni'] <- 'Carduelis_flammea'
+vnsis_flag2$binomial[vnsis_flag2$binomial == 'Calandrella_cheleensis'] <- 'Calandrella_rufescens'
+vnsis_flag2$binomial[vnsis_flag2$binomial == 'Serinus_whytii'] <- 'Serinus_striolatus'
+vnsis_flag2$binomial[vnsis_flag2$binomial == 'Butorides_striata'] <- 'Butorides_virescens'
+
+vnsis_spnames <- unique(vnsis_flag2$binomial)
+vnsis_spnames[!vnsis_spnames %in% botw_filtered$binomial]
+
+# they all match!!!
+
+# Join.
+vnsis_flag2 <- left_join(vnsis_flag2,
+                         botw_filtered %>% select(binomial, realm))
+
+# Find the sister pairs w/at least 10 specimens apiece.
+
+# First redo the sisters with a CONSENSUS tree!!!
+
+library(ape)
+allbirds <- read.tree('~/verts/trees/AllBirdsEricson1.tre')
+
+for (i in 2:10) allbirds <- c(allbirds, read.tree(paste0('~/verts/trees/BirdzillaEricson',i,'.tre')))
+
+library(phytools)
+
+eric_cons_edges <- consensus.edges(trees = allbirds, method = 'least.squares')
+eric_cons_edges <- reroot(eric_cons_edges, node.number = 1, position = 10)
+write.tree(eric_cons_edges, file = '~/verts/trees/ericson_cons.tre')
+
+# In the interim, do this with the old sisters.
+fp <- 'C:/Users/Q/Dropbox/projects/verts'
+
+sister_summary <- read.csv(file.path(fp, 'sister_summary.csv'), stringsAsFactors = FALSE)
+
+# Get only those that are supported in a good percentage of the trees.
+sister_goodpairs <- subset(sister_summary, proportion >= 0.1)
+length(unique(sister_goodpairs$sister2))
+
+# Remove duplicates
+sister_goodpairs$duplicate <- FALSE
+for (i in 2:nrow(sister_goodpairs)) {
+  previous <- c(sister_goodpairs$sister1[1:(i-1)], sister_goodpairs$sister2[1:(i-1)])
+  if (sister_goodpairs$sister1[i] %in% previous | sister_goodpairs$sister2[i] %in% previous) sister_goodpairs$duplicate[i] <- TRUE
+}
+
+sister_goodpairs <- subset(sister_goodpairs, !duplicate)
+
+bird_summ <- vnsis_flag2 %>% 
+  filter(!outlierflag) %>% 
+  group_by(binomial, realm) %>% 
+  summarize(n = n(), 
+            lat = median(abs(decimallatitude), na.rm=T),
+            lon = median(decimallongitude, na.rm=T),
+            cv_logmass = sd(log10(massing))/mean(log10(massing)))
+
+sister_join <- left_join(sister_goodpairs, with(bird_summ, data.frame(sister1=binomial, n1=n, lat1=lat, lon1=lon, cv1=cv_logmass, realm1=realm)))
+sister_join <- left_join(sister_join, with(bird_summ, data.frame(sister2=binomial, n2=n, lat2=lat, lon2=lon, cv2=cv_logmass, realm2=realm)))
+sister_join <- sister_join[complete.cases(sister_join), ]
+
+# Sort them so that lat1 is always the lower latitude.
+for (i in 1:nrow(sister_join)) {
+  if (sister_join$lat1[i] > sister_join$lat2[i]) {
+    tmp <- sister_join[i,]
+    sister_join[i, c('sister1','n1','lat1','lon1','cv1')] <- tmp[c('sister2','n2','lat2','lon2','cv2')]
+    sister_join[i, c('sister2','n2','lat2','lon2','cv2')] <- tmp[c('sister1','n1','lat1','lon1','cv1')]
+  }
+}
+
+sister_join <- mutate(sister_join, dlat = lat2 - lat1, dcv = cv2 - cv1)
+
+####################################################################################################
+# Use only tropical-nontropical pairs and run t-test.
+
+# Get rid of orioles. They are an outlier when it comes to climate.
+sister_join <- filter(sister_join, !grepl('Oriolus',sister1))
+
+# With all quality controls in place, we now have 95 sister pairs.
+sister_troptemp <- filter(sister_join, realm1 == 'tropical' & realm2 == 'nontropical')
+
+with(sister_troptemp, t.test(cv2, cv1, paired = TRUE, alternative = 'greater')) 
