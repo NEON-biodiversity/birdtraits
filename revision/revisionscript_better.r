@@ -80,9 +80,12 @@ botw_cents <- read.csv(file.path(fprev, 'polygon_centroids.csv'), stringsAsFacto
 # Use only resident and breeding polygons, native, and presence status 1-3
 botw_filtered <- botw_cents %>%
   filter(ORIGIN %in% 1, SEASONAL %in% 1:2, PRESENCE %in% 1:3) %>%
-  mutate(realm = 'tropical')
+  mutate(realm = 'tropical') %>%
+  group_by(SCINAME, realm) %>%
+  summarize(lat_centroid = weighted.mean(x = X2, w = Shape_Area)) %>%
+  as.data.frame
 
-botw_filtered$realm[abs(botw_filtered$X2) > 23.5] <- 'nontropical'
+botw_filtered$realm[abs(botw_filtered$lat_centroid) > 23.5] <- 'nontropical'
 
 # 3. Quality control of raw vertnet data, then join with sister status (#1) and tropical status (#2)
 
@@ -188,20 +191,11 @@ badnames <- vnsis_spnames[!vnsis_spnames %in% botw_filtered$binomial] # No bad n
 badnames
 
 # Join with temperate/tropical distinction.
-vnsis <- left_join(vnsis,
+vnsis_filter <- left_join(vnsis,
                          botw_filtered %>% select(binomial, realm) %>% rename(binomial_corr = binomial))
 
 # Get only temperate-tropical pairs from vnsis.
-bird_realms <- vnsis %>%
-	group_by(binomial_corr) %>%
-	summarize(nrealm = length(unique(realm)))
-	
-# Get rid of species that have breeding and year-round range in multiple realms
-tworealmspp <- bird_realms$binomial_corr[bird_realms$nrealm==2]
 
-vnsis_filter <- vnsis %>%
-	filter(!binomial_corr %in% tworealmspp)
-	
 # Add sister's name as a column to the data frame.
 vnsis_filter <- left_join(vnsis_filter, sisters %>% rename(binomial_corr=sister1, sister_binomial=sister2))
 vnsis_filter <- left_join(vnsis_filter, sisters %>% rename(binomial_corr=sister2, sister_binomial2=sister1, dist2=dist))
@@ -264,28 +258,47 @@ library(phytools)
 sister_mrcas <- sapply(1:length(tropical_species), function(i) findMRCA(sistertree, tips = c(tropical_species[i], nontropical_species[i])))
 
 # Collapse each sister node to a "star" phylogeny
-sistertree_coll <- sistertree
-for (i in 1:50) {
-	mrca_node <- findMRCA(sistertree_coll, tips = c(tropical_species[i], nontropical_species[i]))
-	sistertree_coll$edge.length[which(sistertree_coll$edge[,1] == mrca_node)] <- 0
+
+sistertree_fixed <- sistertree
+for (i in 1:length(tropical_species)) {
+  idx <- which(sistertree_fixed$tip.label %in% c(tropical_species[i], nontropical_species[i]))
+  sistertree_fixed$edge.length[which(sistertree_fixed$edge[,2] %in% idx)] <- 0
 }
-sistertree_coll <- drop.tip(sistertree_coll, tip = nontropical_species)
-sistertree_coll_reroot <- reroot(sistertree_coll, node.number = 1, position = 10)
+sistertree_fixed <- drop.tip(sistertree_fixed, tip = nontropical_species) # Better.
 
 nontr_dat <- sister_data$nontropical_cv_logmass
 names(nontr_dat) <- sister_data$tropical_binomial
 tr_dat <- sister_data$tropical_cv_logmass
 names(tr_dat) <- sister_data$tropical_binomial
 
-phyl.pairedttest(tree = sistertree_coll_reroot, x1 = nontr_dat, x2 = tr_dat)
-phyl.pairedttest(tree = sistertree_coll, x1 = nontr_dat, x2 = tr_dat, lambda = 1, fixed = TRUE)
-phyl.pairedttest(tree = drop.tip(sistertree, tip = nontropical_species), x1 = nontr_dat, x2 = tr_dat)
-phyl.pairedttest(tree = drop.tip(sistertree, tip = nontropical_species), x1 = cbind(nontr_dat,tr_dat), lambda = 0, fixed = TRUE)
+#### plot showing the difference as a color.
 
-sistertree_justtrop <- drop.tip(sistertree, tip = nontropical_species)
-nontr_dat <- nontr_dat[sistertree_justtrop$tip.label]
-tr_dat <- tr_dat[sistertree_justtrop$tip.label]
-phyl.pairedttest(tree = multi2di(sistertree_justtrop), x1=tr_dat, x2=nontr_dat)
+ds <- nontr_dat - tr_dat
+d_to_color <- function(ds) {
+  d_color <- colorRampPalette(RColorBrewer::brewer.pal(9, 'RdBu'))(99)
+  break_seq <- seq(-max(abs(ds)), max(abs(ds)), length=100)
+  d_cut <- cut(ds, breaks=break_seq)
+  d_color[match(d_cut, levels(d_cut))]
+}
+
+# Color scale
+plot(sistertree, type = 'fan')
+nodelabels(text = ' ', node = sister_mrcas, bg = d_to_color(ds), width=1, height=1)
+
+# Binary
+plot(sistertree, type = 'fan')
+nodelabels(text = ' ', node = sister_mrcas, bg = c('red','blue')[(ds > 0) + 1], width=1, height=1)
+
+nontr_dat_order <- nontr_dat[sistertree_fixed$tip.label]
+tr_dat_order <- tr_dat[sistertree_fixed$tip.label]
+phylosig(sistertree_fixed, nontr_dat_order-tr_dat_order, method='lambda', test=T) # lambda = 0.712
+
+# Make sure the phylogenetically independent contrasts return non-null values.
+sistertree_di <- multi2di(sistertree_fixed)
+pic(nontr_dat_order - tr_dat_order, sistertree_di) 
+
+phyl.pairedttest(tree = sistertree_fixed, x1 = 100*cbind(nontr_dat, tr_dat))
+
 
 #### Here insert bootstrap subsample analysis.
 
@@ -326,11 +339,19 @@ for (sim in 1:nsim) {
 close(pb)
 
 ps <- c(.5,.025,.975)
-quantile(sapply(ttests, function(x) as.numeric(x$estimate)), prob=ps) # 0.008022447 0.003522459 0.013900431
+quantile(sapply(ttests, function(x) as.numeric(x$estimate)), prob=ps) # 0.008055765 0.004447840 0.011969877 
 table(sapply(ttests, function(x) as.numeric(x$estimate) > 0)) # true in all cases.
-quantile(sapply(ttests, function(x) as.numeric(x$stat)), prob=ps) # 1.7348267 0.8049204 2.7027429 
-quantile(sapply(ttests, function(x) as.numeric(x$p.val)), prob=ps) # 0.044529173 0.004711851 0.212380702 
-sum( sapply(ttests, function(x) as.numeric(x$p.val)) < 0.05)/999 #  0.5505506
+quantile(sapply(ttests, function(x) as.numeric(x$stat)), prob=ps) # 1.991321 1.136962 2.730219 
+quantile(sapply(ttests, function(x) as.numeric(x$p.val)), prob=ps) # 0.025262548 0.004039904 0.129809649 
+sum( sapply(ttests, function(x) as.numeric(x$p.val)) < 0.05)/999 #  0.7487487
 
 
 #### Here insert covariate analysis.
+
+# Export data and inspect the 100 species' records to see if any locations are wrong.
+# Put together tropical and nontropical
+vnsis_export <- vnsis_filter %>% 
+  filter(!outlierflag) %>%
+  filter(binomial_corr %in% c(tropical_species, nontropical_species))
+
+write.csv(vnsis_export, file.path(fprev, 'vertnet_sister_data.csv'), row.names = FALSE)

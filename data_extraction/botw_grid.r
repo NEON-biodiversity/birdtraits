@@ -89,8 +89,11 @@ write.csv(bird, '~/verts/bird_withrichness_23Jun.csv', row.names = FALSE)
 # Update for revision 09 Oct.
 # Find centroids of polygons.
 
+# Update 2: 17 Oct.
+# Must get centroids and then weight by area for each species since there are multiple polygons per species.
+
 botw_centroids <- getSpPPolygonsLabptSlots(bpoly)
-polygondat <- bpoly@data[,c('SCINAME','PRESENCE','ORIGIN','SEASONAL')]
+polygondat <- bpoly@data[,c('SCINAME','PRESENCE','ORIGIN','SEASONAL','Shape_Area')]
 polygondat$genus <- sapply(strsplit(as.character(polygondat$SCINAME), ' '), '[', 1)
 write.csv(cbind(polygondat, botw_centroids), file = '~/verts/polygon_centroids.csv', row.names = FALSE)
 
