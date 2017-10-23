@@ -221,6 +221,34 @@ vnfactor <- vnsis_filter %>% group_by(binomial_corr) %>%
 vnsis_filter <- vnsis_filter %>% left_join(vnfactor) %>% mutate(outlierflag = massing > median_mass * 10 | massing < median_mass / 10)
 table(vnsis_filter$outlierflag)
 
+
+#### Final QC of coordinates and mass.
+
+# Export data and inspect the 100 species' records to see if any locations are wrong.
+# Put together tropical and nontropical
+#vnsis_export <- vnsis_filter %>% 
+#  filter(!outlierflag) %>%
+#  filter(binomial_corr %in% c(tropical_species, nontropical_species))
+
+# write.csv(vnsis_export, file.path(fprev, 'vertnet_sister_data.csv'), row.names = FALSE)
+
+# Load corrected coordinates, replace the corrected entries in the proper columns, then save this for covariate extraction and further analysis.
+vnsis_filter <- read.csv(file.path(fprev, 'vertnet_sister_data_corrected.csv'), stringsAsFactors = FALSE)
+
+vnsis_filter$decimallatitude[!is.na(vnsis_filter$latitude_corr)] <- vnsis_filter$latitude_corr[!is.na(vnsis_filter$latitude_corr)]
+vnsis_filter$decimallongitude[!is.na(vnsis_filter$longitude_corr)] <- vnsis_filter$longitude_corr[!is.na(vnsis_filter$longitude_corr)]
+vnsis_filter$massing[!is.na(vnsis_filter$mass_corr)] <- vnsis_filter$mass_corr[!is.na(vnsis_filter$mass_corr)]
+vnsis_filter$decimallatitude[vnsis_filter$decimallatitude == -9999] <- NA
+vnsis_filter$decimallongitude[vnsis_filter$decimallongitude == -9999] <- NA
+vnsis_filter <- filter(vnsis_filter, invalid_flag != 'y')
+
+# Reexport corrected.
+vnsis_filter %>% 
+  select(binomial, decimallatitude, decimallongitude) %>%
+  arrange(binomial, decimallatitude, decimallongitude) %>%
+  write.csv(file.path(fprev, 'vertnet_coords.csv'), row.names = FALSE)
+
+
 nontropical_summ <- vnsis_filter %>% 
 	filter(!outlierflag) %>%
 	filter(binomial_corr %in% nontropical_species) %>% 
@@ -339,19 +367,13 @@ for (sim in 1:nsim) {
 close(pb)
 
 ps <- c(.5,.025,.975)
-quantile(sapply(ttests, function(x) as.numeric(x$estimate)), prob=ps) # 0.008055765 0.004447840 0.011969877 
+quantile(sapply(ttests, function(x) as.numeric(x$estimate)), prob=ps) # 0.007819834 0.004301053 0.012284541
 table(sapply(ttests, function(x) as.numeric(x$estimate) > 0)) # true in all cases.
-quantile(sapply(ttests, function(x) as.numeric(x$stat)), prob=ps) # 1.991321 1.136962 2.730219 
-quantile(sapply(ttests, function(x) as.numeric(x$p.val)), prob=ps) # 0.025262548 0.004039904 0.129809649 
-sum( sapply(ttests, function(x) as.numeric(x$p.val)) < 0.05)/999 #  0.7487487
+quantile(sapply(ttests, function(x) as.numeric(x$stat)), prob=ps) # 1.923627 1.078500 2.811414 
+quantile(sapply(ttests, function(x) as.numeric(x$p.val)), prob=ps) # 0.029325732 0.003231461 0.142339269 
+sum( sapply(ttests, function(x) as.numeric(x$p.val)) < 0.05)/999 #  0.7167167
 
 
 #### Here insert covariate analysis.
 
-# Export data and inspect the 100 species' records to see if any locations are wrong.
-# Put together tropical and nontropical
-vnsis_export <- vnsis_filter %>% 
-  filter(!outlierflag) %>%
-  filter(binomial_corr %in% c(tropical_species, nontropical_species))
 
-write.csv(vnsis_export, file.path(fprev, 'vertnet_sister_data.csv'), row.names = FALSE)
