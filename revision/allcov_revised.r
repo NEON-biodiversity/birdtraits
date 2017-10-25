@@ -124,7 +124,41 @@ trait_sisters[trait_sisters==-999] <- NA
 
 #### COVARIATE SET 11
 
-# add here (run on cluster)
+# botw_grid was run on cluster.
+
+fp <- '~/verts/mapoutput'
+lapply(as.list(file.path(fp, dir(fp, pattern = 'Oct'))), load, .GlobalEnv)
+overlap_all <- do.call('c', lapply(paste0('overlap', 1:250), get))
+
+bird <- read.csv('~/verts/vertnet_coords.csv', stringsAsFactors = FALSE)
+bird <- subset(bird, !is.na(decimallatitude) & !is.na(decimallongitude))
+
+# Get genus for each of the data points
+polygondat <- read.csv('~/verts/polygondat.csv', stringsAsFactors = FALSE)
+bird$genus <- sapply(strsplit(bird$binomial, '_'), '[', 1)
+
+# Get the richness and congeneric richness at each data point.
+total_richness <- sapply(overlap_all, length)
+congener_richness <- numeric(length(overlap_all))
+
+bbin <- gsub('_', ' ', bird$binomial)
+
+for (i in 1:length(overlap_all)) {
+  spp_i <- polygondat[overlap_all[[i]], ]
+  congener_richness[i] <- sum(bird$genus[i] == spp_i$genus & bbin[i] != spp_i$SCINAME)
+}
+
+richness_df <- data.frame(total_richness, congener_richness)
+bird <- cbind(bird, richness_df)
+
+write.csv(bird, '~/verts/bird_withrichness_Oct.csv', row.names = FALSE)
+
+birdrichness <- read.csv(file.path(fprev, 'bird_withrichness_Oct.csv'), stringsAsFactors = FALSE)
+
+birdrichness_mean <- birdrichness %>%
+  group_by(binomial) %>%
+  summarize(total_richness = mean(total_richness),
+            congener_richness = mean(congener_richness))
 
 #### COVARIATE SET 12
 
@@ -148,11 +182,45 @@ bird_topovar <- bird_clim %>%
 
 #### COMPILE ALL COVARIATES
 
-all_covariates <- birdrange_summstats %>%
+# also get distances in latitude, distance between the median points in great-circle distance, and phylogenetic distance.
+
+# Difference in latitude of centroids, and distance in great circle.
+deg2rad <- function(deg) return(deg*pi/180)
+
+# Great circle distance: https://www.r-bloggers.com/great-circle-distance-calculations-in-r/
+gcd.slc <- function(long1, lat1, long2, lat2) {
+  R <- 6371 # Earth mean radius [km]
+  long1 <- deg2rad(long1)
+  lat1 <- deg2rad(lat1)
+  long2 <- deg2rad(long2)
+  lat2 <- deg2rad(lat2)
+  d <- acos(sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2) * cos(long2-long1)) * R
+  return(d) # Distance in km
+}
+
+# Phylogenetic distance
+dist1 <- sisters$dist[match(tropical_species, sisters$sister1)]
+dist2 <- sisters$dist[match(tropical_species, sisters$sister2)]
+dist_df <- data.frame(tropical_binomial=tropical_species, nontropical_binomial=nontropical_species, dist_phy=pmin(dist1,dist2,na.rm=T))
+
+dist_df <- left_join(dist_df, botw_filtered %>% 
+                       rename(lat_trop = lat_centroid, lon_trop = lon_centroid, tropical_binomial = binomial) %>%
+                       select(tropical_binomial, lat_trop, lon_trop))
+dist_df <- left_join(dist_df, botw_filtered %>% 
+                       rename(lat_nontrop = lat_centroid, lon_nontrop = lon_centroid, nontropical_binomial = binomial) %>%
+                       select(nontropical_binomial, lat_nontrop, lon_nontrop))
+
+dist_df <- mutate(dist_df, 
+                  dlat = abs(lat_nontrop) - abs(lat_trop),
+                  dist_slc = gcd.slc(lon_trop, lat_trop, lon_nontrop, lat_nontrop))
+
+all_covariates <- trait_sisters %>%
+  left_join(birdrange_summstats) %>%
   left_join(birdrange_hullareas) %>%
   left_join(botw_ranges) %>%
-  left_join(trait_sisters) %>%
+  left_join(birdrichness_mean) %>%
   left_join(nsubpops %>% rename(nsubpop = n)) %>%
   left_join(bird_topovar)
 
 write.csv(all_covariates, file.path(fprev, 'all_covariates.csv'), row.names = FALSE)
+write.csv(dist_df, file.path(fprev, 'all_distances.csv'), row.names = FALSE)

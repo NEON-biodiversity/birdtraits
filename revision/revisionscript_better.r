@@ -82,7 +82,8 @@ botw_filtered <- botw_cents %>%
   filter(ORIGIN %in% 1, SEASONAL %in% 1:2, PRESENCE %in% 1:3) %>%
   mutate(realm = 'tropical') %>%
   group_by(SCINAME, realm) %>%
-  summarize(lat_centroid = weighted.mean(x = X2, w = Shape_Area)) %>%
+  summarize(lat_centroid = weighted.mean(x = X2, w = Shape_Area),
+            lon_centroid = weighted.mean(x = X1, w = Shape_Area)) %>%
   as.data.frame
 
 botw_filtered$realm[abs(botw_filtered$lat_centroid) > 23.5] <- 'nontropical'
@@ -376,4 +377,218 @@ sum( sapply(ttests, function(x) as.numeric(x$p.val)) < 0.05)/999 #  0.7167167
 
 #### Here insert covariate analysis.
 
+# Load covariates and calculate difference for the different pairs.
+all_covariates <- read.csv(file.path(fprev, 'all_covariates.csv'), stringsAsFactors = FALSE)
+all_distances <- read.csv(file.path(fprev, 'all_distances.csv'), stringsAsFactors = FALSE)
 
+tropical_covariates <- all_covariates[match(tropical_species, all_covariates$binomial), ]
+nontropical_covariates <- all_covariates[match(nontropical_species, all_covariates$binomial), ]
+names(tropical_covariates) <- paste('tropical', names(tropical_covariates), sep = '_')
+names(nontropical_covariates) <- paste('nontropical', names(nontropical_covariates), sep = '_')
+
+all_sister_data <- left_join(sister_data, dist_df) %>%
+  left_join(tropical_covariates) %>%
+  left_join(nontropical_covariates)
+
+# Calculate differences for the different pairs.
+
+
+predtypes <- c('Invertebrate','Omnivore','VertFishScav')
+
+multregdat <- all_sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp - tropical_spatial_cv_temp,
+                                       interann_temp = nontropical_interannual_var_temp - tropical_interannual_var_temp,
+                                       spatial_precip = nontropical_spatial_cv_precip - tropical_spatial_cv_precip,
+                                       interann_precip = nontropical_interannual_var_precip - tropical_interannual_var_precip,
+                                       rangesize = log10(nontropical_range_size) - log10(tropical_range_size),
+                                       total_richness = nontropical_total_richness - tropical_total_richness,
+                                       congener_richness = nontropical_congener_richness - tropical_congener_richness,
+                                       n_pop = nontropical_nsubpop - tropical_nsubpop,
+                                       elev_cv = nontropical_elevation_cv - tropical_elevation_cv,
+                                       seasonal_temp = nontropical_seasonal_var_temp - tropical_seasonal_var_temp,
+                                       seasonal_precip = nontropical_seasonal_var_precip, tropical_seasonal_var_precip,
+                                       area = log10(nontropical_area + 1) - log10(tropical_area + 1),
+                                       meanlogbodymass = apply(cbind(log10(nontropical_BodyMass.Value), log10(tropical_BodyMass.Value)), 1, mean),
+                                       predator = nontropical_Diet.5Cat %in% predtypes | tropical_Diet.5Cat %in% predtypes,
+                                       migrant = nontropical_migrant_status %in% c('partial','obligate') | tropical_migrant_status %in% c('partial','obligate'),
+                                       dist_phylo = dist_phy,
+                                       dcv = nontropical_cv_logmass - tropical_cv_logmass) %>%
+  dplyr::select(dcv, dlat, dist_phylo, dist_slc, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass, predator, migrant) 
+
+multreg_complete <- filter(multregdat, complete.cases(multregdat)) %>% as.data.frame
+
+multreg_pred <- multreg_complete[,-1]
+cor(multreg_pred)
+usdm::vif(multreg_pred) # Interannual temperature variation and seasonal temperature variation are closely related. However we're interested in which of these might be driving things so leave them both in for now.
+
+lm_full <- lm(dcv ~ ., data = multreg_complete, na.action = 'na.pass')
+
+# Old version of model selection. Used AICc all along.
+
+library(MuMIn)
+lm_dredge <- dredge(lm_full, m.lim = c(0,5))
+lm_best <- subset(lm_dredge, delta < 2)
+
+plot(lm_best)
+
+lm_averaged <-model.avg(lm_best, revised.var = TRUE) 
+
+lm_best1 <- lm(dcv ~ interann_temp + migrant + predator + seasonal_precip + spatial_temp, data = multreg_complete)
+
+
+# Stepwise. Forward and backward. Does not use AICc.
+# Comes up with the same result as the "naive" dredge approach.
+min_model <- lm(dcv ~ 1, data = multreg_complete)
+full_model <- lm(dcv ~ ., data = multreg_complete)
+full_model_formula <- formula(full_model)
+# These yield the same result:
+step(min_model, direction = 'forward', scope = full_model_formula)
+stepAIC(min_model, direction = 'forward', scope = full_model_formula)
+
+# Try with AICc
+source('~/GitHub/birdtraits/revision/stepaicc.r')
+aicc_step_result <- stepAICc(min_model, direction = 'forward', scope = full_model_formula)
+
+# Standardized coefficients
+best_model_data <- multreg_complete %>%
+  transmute(dcv = dcv,
+            migrant = migrant,
+            predator = predator,
+            spatial_temp = spatial_temp/sd(spatial_temp),
+            interann_temp = interann_temp/sd(interann_temp),
+            seasonal_precip = seasonal_precip/sd(seasonal_precip))
+best_model_std <- lm(dcv ~ ., data = best_model_data)
+
+# Correlations
+cor(multreg_complete[,c('seasonal_precip','interann_temp','spatial_temp')])
+
+
+#####
+# Revised figures.
+library(cowplot)
+
+### MAP
+# Recreate data.
+
+mapdat_sister <- all_sister_data %>% mutate(d = tropical_cv_logmass - nontropical_cv_logmass)
+
+heatramp <- colorRampPalette(RColorBrewer::brewer.pal(name='YlOrRd', n=9),bias=2,space="rgb")(50)
+fillScale <- scale_fill_gradientn(colours = heatramp, name = 'Body mass variability', breaks=c(.05,.1,.15), labels=c('.05','.10','.15'))
+linetypeScale <- scale_linetype_manual(name = '', values = c('dotted','solid'), labels = c('Tropical\nmore variable','Nontropical\nmore variable'))
+
+worldMap <- borders('world', fill='gray75', color='black')
+p_map <- ggplot() + worldMap + 
+  geom_segment(aes(x=lon_trop, y=lat_trop, xend=lon_nontrop, yend=lat_nontrop, linetype = d>0), data=mapdat_sister) +
+  geom_point(aes(x=lon_trop,y=lat_trop, fill=tropical_cv_logmass), data=mapdat_sister, pch=21) +
+  geom_point(aes(x=lon_nontrop,y=lat_nontrop, fill=nontropical_cv_logmass), data=mapdat_sister, pch=21) +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(breaks = c(-23.5, 23.5), labels = c('23.5° S', '23.5° N'), expand=c(0,0)) +
+  fillScale + linetypeScale +
+  theme(panel.background = element_rect(fill='skyblue'),
+        panel.grid.major.y = element_line(color='black', size=1.1),
+        panel.grid.major.x = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position=c(0,0), 
+        legend.direction = 'horizontal',
+        legend.justification = c(0,0),
+        legend.text = element_text(size=10)) + 
+  coord_map('albers',0,0, ylim = c(-60,60))
+
+
+####################################################################################################
+# Plot interaction plot.
+
+ylabel <- expression(paste('CV of log'[10], ' body mass'))		
+
+plotdat <- data.frame(realm = rep(c('tropical','nontropical'), each=nrow(sister_data)),
+                      taxon = c(sister_data$tropical_binomial, sister_data$nontropical_binomial),
+                      pairid = 1:nrow(sister_data),
+                      cv_logmass = c(sister_data$tropical_cv_logmass, sister_data$nontropical_cv_logmass))
+
+p_int <- ggplot(plotdat, aes(x = realm, y = cv_logmass)) +
+  geom_line(aes(group = pairid), color = 'gray75') + 
+  geom_point(aes(group = pairid)) +
+  stat_summary(aes(group = 1), geom = 'line', color = 'red', fun.y = 'mean', size = 0.8) +
+  stat_summary(geom = 'errorbar', color = 'red', fun.data = 'mean_se', width = 0.1) +
+  scale_x_discrete(expand=c(0.1,0.1), name='Zone') +
+  labs(y = ylabel) +
+  panel_border(colour='black')
+
+phist <- ggplot(sister_data, aes(x = nontropical_cv_logmass - tropical_cv_logmass)) +
+  geom_histogram(bins = 15) +
+  geom_vline(xintercept = 0.0092, color = 'red', lwd = 2) +
+  geom_vline(xintercept = 0.0029, color = 'red', lwd = 0.5) +
+  geom_vline(xintercept = 0, color = 'blue', lty = 3) +
+  scale_y_continuous(limits = c(0,25), expand = c(0,0)) +
+  labs(x = 'nontropical CV - tropical CV', y = 'count of species pairs') +
+  panel_border(colour='black')
+
+####################################################################################################
+# Plot scatterplots of covariates that go into the main text.
+# Must use the version that controls for other predictors.
+# Added variable plots.
+
+library(car)
+
+avPlots(best_model_std)
+avdat <- avPlots(best_model_std)
+avdat <- lapply(avdat, function(x) {x <- as.data.frame(x); names(x) <- c('x','y'); x})
+
+avreg1 <- lm(y ~ x, data = avdat$interann_temp)
+avcoef1 <- avreg1$coefficients
+avreg2 <- lm(y ~ x, data = avdat$spatial_temp)
+avcoef2 <- avreg2$coefficients
+
+hl <- geom_hline(yintercept = 0, color = 'gray80', lwd = 0.4)
+vl <- geom_vline(xintercept = 0, color = 'gray80', lwd = 0.4)
+
+y_scale <- scale_y_continuous(limits = c(-0.05, 0.12))
+
+pcov1 <- ggplot(avdat$interann_temp, aes(x = x, y = y)) +
+  hl + 
+  geom_point() + stat_smooth(method='lm', se=F) +
+  panel_border(colour='black') + 
+  #y_scale +
+  labs(x = expression(paste('interannual ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical  \nmore variable  ', '  Tropical\n  more variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
+
+pcov2 <- ggplot(avdat$spatial_temp, aes(x = x, y = y)) +
+  hl + 
+  geom_point() + stat_smooth(method='lm', se=F) +
+  panel_border(colour='black') + 
+ # scale_y_continuous(limits = c(-0.1, 0.12)) +
+  labs(x = expression(paste('spatial ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
+  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+            aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
+
+##### Combine
+
+smalllab <- theme(axis.title.x=element_text(size=10),
+                  axis.title.y=element_text(size=10))
+
+bottom_row <- plot_grid(p_int, pcov1, pcov2, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
+full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(1, 0.9))
+ggsave(file.path(fprev, 'fig1.png'), full_plot, height=6, width=8, dpi=400)
+
+
+#### Supplemental figure.
+####################################################################################################
+# Plot scatterplots of covariates that go into the supplement.
+
+xaxisvars <- c('dlat', 'dist_phylo', 'dist_slc', 'spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'predator', 'migrant', 'meanlogbodymass')
+xaxislabels <- c('', '', '', 'Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Predator status', 'Migrant status', 'Mean of log body mass')
+
+scatterplots <- list()
+
+for (i in 1:length(xaxislabels)) {
+  p_i <- ggplot(multregdat, aes_string(x = xaxisvars[i], y = 'dcv')) +
+    geom_point() +
+    panel_border(colour='black') +
+    labs(y = expression(Delta*CV[bodymass]), x = xaxislabels[i])
+  scatterplots[[i]] <- p_i
+}
+
+p_all <- plot_grid(plotlist = scatterplots, ncol = 3, labels = letters[1:length(xaxislabels)])
+ggsave('C:/Users/Q/Dropbox/projects/verts/vertnet_results/supplementalscatterplots_revised.png', p_all, height = 15*.85, width = 11*.85, dpi = 400)
