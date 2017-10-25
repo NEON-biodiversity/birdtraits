@@ -578,7 +578,7 @@ ggsave(file.path(fprev, 'fig1.png'), full_plot, height=6, width=8, dpi=400)
 # Plot scatterplots of covariates that go into the supplement.
 
 xaxisvars <- c('dlat', 'dist_phylo', 'dist_slc', 'spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'predator', 'migrant', 'meanlogbodymass')
-xaxislabels <- c('', '', '', 'Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Predator status', 'Migrant status', 'Mean of log body mass')
+xaxislabels <- c('Latitudinal distance', 'Phylogenetic distance', 'Geographic distance', 'Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Predator status', 'Migrant status', 'Mean of log body mass')
 
 scatterplots <- list()
 
@@ -591,4 +591,13 @@ for (i in 1:length(xaxislabels)) {
 }
 
 p_all <- plot_grid(plotlist = scatterplots, ncol = 3, labels = letters[1:length(xaxislabels)])
-ggsave('C:/Users/Q/Dropbox/projects/verts/vertnet_results/supplementalscatterplots_revised.png', p_all, height = 15*.85, width = 11*.85, dpi = 400)
+ggsave(file.path(fprev, 'supplementalfig1.png'), p_all, height = 15*.85, width = 11*.9, dpi = 400)
+       
+#### Model selection plot
+
+dimlabels <- c('(Intercept)', 'log10 collection area', 'Congener richness', 'Phylogenetic distance', 'Geographic distance', 'Latitudinal distance', 'CV of elevation', 'Interannual CV of MAP', 'Interannual CV of MAT', 'Mean of log body mass', 'Migrant status', 'Populations collected', 'Predator status', 'log10 range size', 'Seasonal CV of MAP', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Spatial CV of MAT', 'Total richness')
+  
+png(file.path(fprev, 'supplementalfig2.png'), height = 9, width = 8, res = 400, units = 'in')
+ par(mar = c(1, 4.5, 12, 4))
+ plot(lm_best, labels=dimlabels)
+dev.off()
