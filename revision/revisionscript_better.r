@@ -386,9 +386,16 @@ nontropical_covariates <- all_covariates[match(nontropical_species, all_covariat
 names(tropical_covariates) <- paste('tropical', names(tropical_covariates), sep = '_')
 names(nontropical_covariates) <- paste('nontropical', names(nontropical_covariates), sep = '_')
 
-all_sister_data <- left_join(sister_data, dist_df) %>%
+all_sister_data <- left_join(sister_data, all_distances) %>%
   left_join(tropical_covariates) %>%
   left_join(nontropical_covariates)
+
+# Export for supplement.
+all_sister_data %>% select(-lat_trop, -lon_trop, -lat_nontrop, -lon_nontrop) %>%
+  write.csv(file = file.path(fprev, 'archive/bird_sister_species_data.csv'), row.names = FALSE)
+
+# Export raw body mass data too
+write.csv(vnbird_good, file = file.path(fprev, 'archive/raw_body_mass_data.csv'), row.names = FALSE)
 
 # Calculate differences for the different pairs.
 
