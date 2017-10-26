@@ -608,3 +608,18 @@ png(file.path(fprev, 'supplementalfig2.png'), height = 9, width = 8, res = 400, 
  par(mar = c(1, 4.5, 12, 4))
  plot(lm_best, labels=dimlabels)
 dev.off()
+
+
+# Edit: add AICcs to supplemental plot. Don't plot the weird numbers.
+lm_best <- subset(lm_dredge, delta < 2)
+deltaaiccs <- lm_best$AICc - (min(lm_best$AICc))
+
+lm_best_fixlabels <- lm_best
+dimnames(lm_best_fixlabels)[[1]] <- round(deltaaiccs, 2)
+
+plot(lm_best_fixlabels, labels=dimlabels)
+
+png(file.path(fprev, 'supplementalfig2_withaiccs.png'), height = 9, width = 8, res = 400, units = 'in')
+par(mar = c(1, 4.5, 12, 4.1))
+plot(lm_best_fixlabels, labels=dimlabels)
+dev.off()
