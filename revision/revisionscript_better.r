@@ -402,7 +402,7 @@ write.csv(vnbird_good, file = file.path(fprev, 'archive/raw_body_mass_data.csv')
 
 predtypes <- c('Invertebrate','Omnivore','VertFishScav')
 
-multregdat <- all_sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp - tropical_spatial_cv_temp,
+multregdat <- sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp - tropical_spatial_cv_temp,
                                        interann_temp = nontropical_interannual_var_temp - tropical_interannual_var_temp,
                                        spatial_precip = nontropical_spatial_cv_precip - tropical_spatial_cv_precip,
                                        interann_precip = nontropical_interannual_var_precip - tropical_interannual_var_precip,
