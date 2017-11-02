@@ -230,3 +230,7 @@ write.csv(dist_df, file.path(fprev, 'all_distances.csv'), row.names = FALSE)
 # Check correlations of some of the bio variables for a small side point in the MS.
 with(bird_clim, cor(bio4, bio15, use = 'complete.obs'))
 with(bird_clim, cor(bio12, bio15, use = 'complete.obs'))
+
+# addendum 2 Nov:
+# Check variance inflation factor of final best model.
+usdm::vif(best_model_data[,-1])

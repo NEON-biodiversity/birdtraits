@@ -88,6 +88,15 @@ botw_filtered <- botw_cents %>%
 
 botw_filtered$realm[abs(botw_filtered$lat_centroid) > 23.5] <- 'nontropical'
 
+# addendum 2 Nov:
+# How many sister temperate-tropical pairs are there if we don't care if they have adequate numbers in the vertnet database?
+botw_filtered <- botw_filtered %>% 
+  mutate(binomial = gsub('\\ ', '_', SCINAME)) 
+teh_pairs <- sisters %>%
+  left_join(botw_filtered %>% rename(sister1=binomial, realm1=realm) %>% dplyr::select(sister1, realm1)) %>%
+  left_join(botw_filtered %>% rename(sister2=binomial, realm2=realm) %>% dplyr::select(sister2, realm2)) %>%
+  filter(realm1 != realm2)
+
 # 3. Quality control of raw vertnet data, then join with sister status (#1) and tropical status (#2)
 
 vnbird <- read.csv(file.path(fp, 'vertnet_birds_reduced.csv'), stringsAsFactors = FALSE)	
