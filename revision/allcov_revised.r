@@ -224,3 +224,9 @@ all_covariates <- trait_sisters %>%
 
 write.csv(all_covariates, file.path(fprev, 'all_covariates.csv'), row.names = FALSE)
 write.csv(dist_df, file.path(fprev, 'all_distances.csv'), row.names = FALSE)
+
+####################################
+# addendum 1 Nov:
+# Check correlations of some of the bio variables for a small side point in the MS.
+with(bird_clim, cor(bio4, bio15, use = 'complete.obs'))
+with(bird_clim, cor(bio12, bio15, use = 'complete.obs'))
