@@ -1,0 +1,31 @@
+---
+title: "Phylogenetic correction"
+author: "Quentin D. Read"
+date: "December 4, 2017"
+output: pdf_document
+---
+
+# Description of situation
+
+For the Biology Letters review, Reviewer 3 is very insistent that a phylogenetic correction is necessary. However, my opinion is that our analysis already does a lot to correct for phylogeny. Namely, we look at the difference within pairs of birds that are each other's closest sister species. That already ensures that all the temperate-tropical transitions within sister pairs are more or less independent from one another. It is already a conservative test that lowers the probability of a Type I error at the cost of making Type II error more likely (not detecting a true effect). However, the reviewer argues that we still might have pseudoreplication because the sister pairs might be unevenly distributed throughout the phylogeny. They insist on an additional phylogenetic correction. I believe the results I show below demonstrate that the reviewer's suggestion is inappropriate for our analysis.
+
+The other way to look at it is that I'm just p-hacking around on an effect that is really weak, and I don't like the phylogenetic correction because it gives me a result I don't want. That may be the case, but I really think it is more that the reviewer is being way too pedantic and trying to make us double correct an analysis that is already really conservative and corrects for the thing he or she wants us to. I don't see how we can convince the reviewer that this is double correcting and represents a recorrection of an already corrected thing, but we might just have to convince the editor at this point. I'm not quite sure what the editor thinks but I think they probably don't care too much about the correction.
+
+I would like some feedback on this both from the perspective of whether the phylogenetic correction I did is correct, and what we should do about it. We could withdraw the paper if it is impossible to simultaneously satisfy the reviewer and preserve our story.
+
+# Brief summary of phylogenetic correction analysis
+
+Our analysis as it is currently in the paper consists of 2 corrections applied to account for phylogenetic non-independence. (1) We only used species that we could identify as belonging to a tropical/nontropical sister pair. This means that we  had to throw out a huge amount of data. Only 136 species could be identified as belonging to a tropical-nontropical sister pair (68 pairs). By contrast if we had used all the tropical species and nontropical species in VertNet in an unpaired analysis, we would have had 1827 and 1028 species in each group, respectively! So our degrees of freedom were already down to a tiny fraction of what they could have been. (2) We ran the t-test in a paired design to ensure that the tropical-nontropical comparisons we were making were phylogenetically independent.
+
+However the reviewer still wanted us to do a *third* correction, to deal with non-independence of the pairs themselves. That is way way too conservative. The only reason we have such a low-power design with a low sample size already is because we used the sister species as our phylogenetic correction. We could have done an unpaired analysis with a phylogenetic correction with all 2855 species, then we would never have had to throw out >90% of our data to begin with and the analysis would be robust. But it is the sister species that make this analysis interesting and cool. 
+
+Here is a table showing the t-ratios and p-values for all possible ways we could have analyzed the data. I think it is pretty clear just from looking at this table that the reviewer is asking for a much too conservative analysis that has no chance of detecting an effect. The way we are doing it now is in row 1 of the table, the reviewer's desire is in the 2nd row, and the unpaired results that would not require us to throw out 90% of the data, with and without phylogenetic correction, are in rows 5 and 6. We and the reviewer can both agree that Row 5 is a naive analysis with overinflated degrees of freedom and is wrong. However, row 6 shows that when we do apply a conservative phylogenetic correction ***on the full dataset*** (without all non-sisters arbitrarily thrown out) you still see a huge difference between tropical and nontropical. So I think we can be justified in saying that there is a difference and that our corrections that we currently apply are adequate.
+
+| T-test type | Sister correction applied? | Phylogenetic correction applied? | What species are used? | N trop. | N nontrop. | df   | t-value | p-value  | NOTE                                                  |
+|---------------|----------------------------|----------------------------------|------------------------|------------|---------------|------|---------|----------|-------------------------------------------------------|
+| paired        | yes                        | no                               | only sister species    | 68         | 68            | 67   | 2.437   | 0.009    | * what is currently in the paper                      |
+| paired        | yes                        | yes                              | only sister species    | 68         | 68            |      | 0.287   | 0.775    | * what the reviewer (unrealistically) wants           |
+| unpaired      | no                         | no                               | only sister species    | 68         | 68            | 132  | 1.807   | 0.037    | * very naïve method with small sample size            |
+| unpaired      | no                         | yes                              | only sister species    | 68         | 68            |      | 1.588   | 0.115    | * another single type of correction applied, not both |
+| unpaired      | no                         | no                               | all species            | 1827       | 1028          | 2187 | 8.332   | 2.00E-16 | * very naïve method with large sample size            |
+| unpaired      | no                         | yes                              | all species            | 1827       | 1028          |      | 6.284   | 3.80E-10 | * here, the PIC is appropriate!                       |
