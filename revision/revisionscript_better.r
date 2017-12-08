@@ -411,7 +411,7 @@ write.csv(vnbird_good, file = file.path(fprev, 'archive/raw_body_mass_data.csv')
 
 predtypes <- c('Invertebrate','Omnivore','VertFishScav')
 
-multregdat <- sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp - tropical_spatial_cv_temp,
+multregdat <- all_sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp - tropical_spatial_cv_temp,
                                        interann_temp = nontropical_interannual_var_temp - tropical_interannual_var_temp,
                                        spatial_precip = nontropical_spatial_cv_precip - tropical_spatial_cv_precip,
                                        interann_precip = nontropical_interannual_var_precip - tropical_interannual_var_precip,
@@ -429,6 +429,17 @@ multregdat <- sister_data %>% mutate(spatial_temp = nontropical_spatial_cv_temp 
                                        dist_phylo = dist_phy,
                                        dcv = nontropical_cv_logmass - tropical_cv_logmass) %>%
   dplyr::select(dcv, dlat, dist_phylo, dist_slc, spatial_temp, interann_temp, spatial_precip, interann_precip, rangesize, total_richness, congener_richness, n_pop, elev_cv, seasonal_temp, seasonal_precip, area, meanlogbodymass, predator, migrant) 
+
+# Added 08 Dec. Look at how many have multiple predator and migrant types.
+# Contingency table
+with(all_sister_data, table(nontropical_Diet.5Cat %in% predtypes, tropical_Diet.5Cat %in% predtypes)) # most are both. 9 both not, 52 both yes, 7 opp.
+with(all_sister_data, table(nontropical_migrant_status %in% c('partial','obligate'), tropical_migrant_status %in% c('partial','obligate'))) # Here we look at whether the NONtropical is a migrant, since no species pairs have the tropical being a migrant and the nontropical being one.
+
+# Create new predator variable with 3 categories: both herbivore, both carn/omnivore, and mixed.
+predator_mixed <- with(all_sister_data, xor(nontropical_Diet.5Cat %in% predtypes, tropical_Diet.5Cat %in% predtypes))
+predator_both <- with(all_sister_data, nontropical_Diet.5Cat %in% predtypes & tropical_Diet.5Cat %in% predtypes)
+
+multregdat <- mutate(multregdat, predator_mixed=predator_mixed, predator_both=predator_both) %>% dplyr::select(-predator) # Only run this line if you want to use the alternate (3-way) predator classification
 
 multreg_complete <- filter(multregdat, complete.cases(multregdat)) %>% as.data.frame
 
@@ -474,9 +485,22 @@ best_model_data <- multreg_complete %>%
             seasonal_precip = seasonal_precip/sd(seasonal_precip))
 best_model_std <- lm(dcv ~ ., data = best_model_data)
 
+# Do this with two predator status variables
+best_model_data <- multreg_complete %>%
+  transmute(dcv = dcv,
+            migrant = migrant,
+            predator_both = predator_both,
+            spatial_temp = spatial_temp/sd(spatial_temp),
+            rangesize = rangesize/sd(rangesize))
+best_model_std <- lm(dcv ~ ., data = best_model_data)
+
+
 # Correlations
 cor(multreg_complete[,c('seasonal_precip','interann_temp','spatial_temp')])
 
+# Added 08 Dec. Get R^2 and VIF analysis for best model to add to MS.
+summary(best_model_std)
+usdm::vif(best_model_data[,-1])
 
 #####
 # Revised figures.
@@ -592,16 +616,26 @@ ggsave(file.path(fprev, 'fig1.png'), full_plot, height=6, width=8, dpi=400)
 #### Supplemental figure.
 ####################################################################################################
 # Plot scatterplots of covariates that go into the supplement.
+# Edit 08 Dec. Generate added variable plots for these, as well as adding a line to the plots.
 
 xaxisvars <- c('dlat', 'dist_phylo', 'dist_slc', 'spatial_temp','interann_temp','seasonal_temp','spatial_precip','interann_precip','seasonal_precip','rangesize','total_richness','congener_richness','n_pop','elev_cv','area', 'predator', 'migrant', 'meanlogbodymass')
 xaxislabels <- c('Latitudinal distance', 'Phylogenetic distance', 'Geographic distance', 'Spatial CV of MAT', 'Interannual CV of MAT', 'Seasonal CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Seasonal CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Collection area (log10 km2)', 'Predator status', 'Migrant status', 'Mean of log body mass')
 
+# Create insane full model and do added variable regression to get data for plots
+library(car)
+lm_full <- lm(dcv ~ ., data = multreg_complete, na.action = 'na.pass')
+avdatfull <- avPlots(lm_full)
+avdatfull <- lapply(avdatfull, function(x) {x <- as.data.frame(x); names(x) <- c('x','y'); x})
+xaxislabels <- c('Latitudinal distance', 'Phylogenetic distance', 'Geographic distance', 'Spatial CV of MAT', 'Interannual CV of MAT', 'Spatial CV of MAP', 'Interannual CV of MAP', 'Range size (log10 km2)', 'Total richness', 'Congener richness', 'Populations collected', 'CV of elevation', 'Seasonal CV of MAT', 'Seasonal CV of MAP', 'Collection area (log10 km2)', 'Mean of log body mass', 'Predator status', 'Migrant status')
+
+
 scatterplots <- list()
 
 for (i in 1:length(xaxislabels)) {
-  p_i <- ggplot(multregdat, aes_string(x = xaxisvars[i], y = 'dcv')) +
+  p_i <- ggplot(avdatfull[[i]], aes(x, y)) +
     geom_point() +
-    panel_border(colour='black') +
+    stat_smooth(method = 'lm', se = FALSE) +
+    panel_border(colour = 'black') +
     labs(y = expression(Delta*CV[bodymass]), x = xaxislabels[i])
   scatterplots[[i]] <- p_i
 }
