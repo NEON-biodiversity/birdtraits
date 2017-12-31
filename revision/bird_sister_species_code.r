@@ -1,4 +1,4 @@
-# Read, Q. D., B. Baiser, J. M. Grady, P. L. Zarnetske, S. Record, and J. Belmaker. 2017. Tropical bird species have narrower body-size niches. Biology Letters.
+# Read, Q. D., B. Baiser, J. M. Grady, P. L. Zarnetske, S. Record, and J. Belmaker. Tropical bird species have less variable body sizes. Biology Letters.
 # Corresponding author: Q. D. Read (qdr@msu.edu)
 
 # Code to be archived on datadryad.org to replicate analyses in manuscript
@@ -7,7 +7,7 @@
 # QC has already been performed on the raw data, and summary statistics calculated.
 # The final processed dataset is what has been archived online.
 # The code for compiling the covariates and running QC is available from QDR on request.
-# Code was tested using R 3.3.3 on 25 Oct 2017.
+# Code was tested using R 3.3.3 on 13 Dec 2017.
 
 ################
 # Load dataset #
@@ -131,6 +131,10 @@ best_model_data <- multreg_complete %>%
             interann_temp = interann_temp/sd(interann_temp),
             seasonal_precip = seasonal_precip/sd(seasonal_precip))
 best_model_std <- lm(dcv ~ ., data = best_model_data)
+
+# Display summary information from model fit including confidence intervals
+summary(best_model_std)
+confint(best_model_std)
 
 # Correlations
 cor(multreg_complete[,c('seasonal_precip','interann_temp','spatial_temp')])
