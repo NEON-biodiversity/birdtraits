@@ -583,24 +583,24 @@ avcoef2 <- avreg2$coefficients
 hl <- geom_hline(yintercept = 0, color = 'gray80', lwd = 0.4)
 vl <- geom_vline(xintercept = 0, color = 'gray80', lwd = 0.4)
 
-y_scale <- scale_y_continuous(limits = c(-0.05, 0.12))
+y_scale <- scale_y_continuous(limits = c(-0.07, 0.11))
 
 pcov1 <- ggplot(avdat$interann_temp, aes(x = x, y = y)) +
   hl + 
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
-  #y_scale +
+  y_scale +
   labs(x = expression(paste('interannual ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
-  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical  \nmore variable  ', '  Tropical\n  more variable')),
+  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical \nmore variable ', ' Tropical\n more variable')),
             aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
 
 pcov2 <- ggplot(avdat$spatial_temp, aes(x = x, y = y)) +
   hl + 
   geom_point() + stat_smooth(method='lm', se=F) +
   panel_border(colour='black') + 
- # scale_y_continuous(limits = c(-0.1, 0.12)) +
+  y_scale +
   labs(x = expression(paste('spatial ',Delta * CV[temperature])), y = expression(Delta * CV[bodymass])) +
-  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical\nmore variable', 'Tropical\nmore variable')),
+  geom_text(data=data.frame(x=c(Inf, -Inf), y = c(Inf, -Inf), lab = c('Nontropical \nmore variable ', ' Tropical\n more variable')),
             aes(label=lab), hjust = c(1,0), vjust = c(1.1,-.5), size = 3)
 
 ##### Combine
@@ -610,7 +610,7 @@ smalllab <- theme(axis.title.x=element_text(size=10),
 
 bottom_row <- plot_grid(p_int, pcov1, pcov2, labels = c('b', 'c', 'd'), align = 'h', rel_widths = c(1, 1.4, 1.4), ncol=3)
 full_plot <- plot_grid(p_map + panel_border(colour='black') + theme(legend.position='bottom'), bottom_row, labels = c('a', ''), ncol = 1, rel_heights = c(1, 0.9))
-ggsave(file.path(fprev, 'fig1.png'), full_plot, height=6, width=8, dpi=400)
+ggsave(file.path(fprev, 'fig1_finaledit.png'), full_plot, height=6, width=8, dpi=400)
 
 
 #### Supplemental figure.
